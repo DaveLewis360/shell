@@ -30,7 +30,7 @@ StyledClippingRect {
     implicitWidth: Tokens.sizes.bar.innerWidth
     implicitHeight: layout.implicitHeight + Tokens.padding.small * 2
 
-    color: Colours.tPalette.m3surfaceContainer
+    color: Colours.glassBackground
     radius: Tokens.rounding.full
 
     Item {

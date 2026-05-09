@@ -24,6 +24,7 @@ Singleton {
     readonly property M3Palette preview: M3Palette {}
     readonly property Transparency transparency: Transparency {}
     readonly property alias wallLuminance: analyser.luminance
+    readonly property color glassBackground: Qt.rgba(palette.m3surface.r, palette.m3surface.g, palette.m3surface.b, transparency.base)
 
     function getLuminance(c: color): real {
         if (c.r == 0 && c.g == 0 && c.b == 0)
