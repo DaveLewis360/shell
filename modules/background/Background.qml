@@ -20,7 +20,7 @@ Variants {
         name: "background"
         WlrLayershell.exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: contentItem.Config.background.wallpaperEnabled ? WlrLayer.Background : WlrLayer.Bottom
-        color: contentItem.Config.background.wallpaperEnabled ? "black" : "transparent"
+        color: contentItem.Config.background.wallpaperEnabled && !Wallpapers.currentIsVideo ? "black" : "transparent"
         surfaceFormat.opaque: false
 
         anchors.top: true
@@ -39,7 +39,7 @@ Variants {
                 asynchronous: true
 
                 anchors.fill: parent
-                active: Config.background.wallpaperEnabled
+                active: Config.background.wallpaperEnabled && !Wallpapers.currentIsVideo
 
                 sourceComponent: Wallpaper {}
             }
@@ -58,7 +58,8 @@ Variants {
             active: Config.background.desktopClock.enabled
 
             anchors.margins: Tokens.padding.large * 2
-            anchors.leftMargin: Tokens.padding.large * 2 + Tokens.sizes.bar.innerWidth + Math.max(Tokens.padding.smaller, Config.border.thickness)
+            anchors.leftMargin: Tokens.padding.large * 2
+            anchors.topMargin: Tokens.padding.large * 2 + Tokens.sizes.bar.innerWidth + Math.max(Tokens.padding.smaller, Config.border.thickness)
 
             state: Config.background.desktopClock.position
             states: [

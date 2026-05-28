@@ -15,6 +15,11 @@ Item {
     property Image current: one
     property bool completed
 
+    function isVideoPath(path: string): bool {
+        const ext = path.split('.').pop().toLowerCase();
+        return ["mp4", "webm", "mkv", "mov", "gif"].includes(ext);
+    }
+
     onSourceChanged: {
         if (!source)
             current = null;
@@ -73,8 +78,8 @@ Item {
                             id: dialog
 
                             title: qsTr("Select a wallpaper")
-                            filterLabel: qsTr("Image files")
-                            filters: Images.validImageExtensions
+                            filterLabel: qsTr("Media files")
+                            filters: ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.mp4", "*.webm", "*.mkv", "*.mov", "*.gif"]
                             onAccepted: path => Wallpapers.setWallpaper(path)
                         }
 
@@ -110,31 +115,34 @@ Item {
     component Img: CachingImage {
         id: img
 
+        property bool isVideoSource: false
+
         function update(): void {
-            if (path === root.source)
-                root.current = this;
-            else
+            isVideoSource = root.isVideoPath(root.source);
+
+            if (!isVideoSource) {
                 path = root.source;
+            } else {
+                path = "";
+            }
+
+            if (path === root.source || isVideoSource)
+                root.current = this;
         }
 
         anchors.fill: parent
 
-        opacity: 0
-        scale: Wallpapers.showPreview ? 1 : 0.8
+        opacity: (root.current === img && !img.isVideoSource) ? 1 : 0
+        scale: (root.current === img) ? 1 : (Wallpapers.showPreview ? 1 : 0.8)
 
         onStatusChanged: {
             if (status === Image.Ready)
                 root.current = this;
         }
 
-        states: State {
-            name: "visible"
-            when: root.current === img
-
-            PropertyChanges {
-                img.opacity: 1
-                img.scale: 1
-            }
+        onIsVideoSourceChanged: {
+            if (isVideoSource)
+                root.current = this;
         }
 
         transitions: Transition {

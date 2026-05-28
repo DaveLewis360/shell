@@ -9,6 +9,9 @@ import qs.components.controls
 import qs.components.effects
 import qs.components.images
 import qs.services
+import qs.utils
+import Quickshell
+import Quickshell.Io
 
 GridView {
     id: root
@@ -35,6 +38,10 @@ GridView {
         readonly property bool isCurrent: modelData && modelData.path === Wallpapers.actualCurrent
         readonly property real itemMargin: Tokens.spacing.normal / 2
         readonly property real itemRadius: Tokens.rounding.normal
+        readonly property bool isVideo: {
+            const ext = modelData.path.split('.').pop().toLowerCase();
+            return ["mp4", "webm", "mkv", "mov", "gif"].includes(ext);
+        }
 
         width: root.cellWidth
         height: root.cellHeight
@@ -69,7 +76,7 @@ GridView {
             CachingImage {
                 id: cachingImage
 
-                path: modelData.path
+                path: isVideo ? videoThumb.thumbPath : modelData.path
                 anchors.fill: parent
                 fillMode: Image.PreserveAspectCrop
                 cache: true
@@ -88,12 +95,46 @@ GridView {
                 }
             }
 
+            QtObject {
+                id: videoThumb
+
+                readonly property string thumbPath: isVideo ? `/tmp/wallthumbs/${Qt.md5(modelData.path)}.jpg` : ""
+            }
+
+            Process {
+                id: genThumbProc
+
+                command: ["bash", "-c", `mkdir -p /tmp/wallthumbs && ffmpeg -y -i '${modelData.path}' -vframes 1 -q:v 2 '${videoThumb.thumbPath}'`]
+                running: isVideo
+
+                onExited: (ok, status) => {
+                    if (ok) {
+                        cachingImage.path = "";
+                        cachingImage.path = videoThumb.thumbPath;
+                    }
+                }
+            }
+
+            // Play icon overlay for video files
+            MaterialIcon {
+                anchors.centerIn: parent
+                text: "play_circle"
+                color: Colours.palette.m3onSurface
+                font.pointSize: Tokens.font.size.extraLarge * 3
+                visible: isVideo && cachingImage.status !== Image.Ready
+                opacity: 0.7
+
+                Behavior on opacity {
+                    NumberAnimation { duration: 200 }
+                }
+            }
+
             // Fallback if CachingImage fails to load
             Image {
                 id: fallbackImage
 
                 anchors.fill: parent
-                source: fallbackTimer.triggered && cachingImage.status !== Image.Ready ? modelData.path : ""
+                source: !isVideo && fallbackTimer.triggered && cachingImage.status !== Image.Ready ? modelData.path : ""
                 asynchronous: true
                 fillMode: Image.PreserveAspectCrop
                 cache: true
@@ -209,7 +250,7 @@ GridView {
             anchors.rightMargin: Tokens.padding.normal + Tokens.spacing.normal / 2
             anchors.bottomMargin: Tokens.padding.normal
 
-            text: modelData.name
+            text: isVideo ? "🎬 " + modelData.name : modelData.name
             font.pointSize: Tokens.font.size.smaller
             font.weight: 500
             color: isCurrent ? Colours.palette.m3primary : Colours.palette.m3onSurface

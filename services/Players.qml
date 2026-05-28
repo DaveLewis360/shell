@@ -14,6 +14,7 @@ Singleton {
     readonly property list<MprisPlayer> list: Mpris.players.values
     readonly property MprisPlayer active: props.manualActive ?? list.find(p => getIdentity(p) === GlobalConfig.services.defaultPlayer) ?? list[0] ?? null
     property alias manualActive: props.manualActive
+    property string lastArtUrl: ""
 
     function getIdentity(player: MprisPlayer): string {
         const alias = GlobalConfig.services.playerAliases.find(a => a.from === player.identity);
@@ -36,6 +37,12 @@ Singleton {
     }
 
     Connections {
+        function onTrackArtUrlChanged() {
+            if (root.active && root.active.trackArtUrl != "") {
+                root.lastArtUrl = root.active.trackArtUrl;
+            }
+        }
+
         function onPostTrackChanged() {
             if (!GlobalConfig.utilities.toasts.nowPlaying) {
                 return;

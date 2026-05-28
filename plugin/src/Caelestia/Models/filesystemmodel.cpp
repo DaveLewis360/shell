@@ -302,6 +302,7 @@ void FileSystemModel::updateEntriesForDir(const QString& dir) {
             for (const auto& format : formats) {
                 extraNameFilters << "*." + format;
             }
+            extraNameFilters << "*.mp4" << "*.webm" << "*.mkv" << "*.mov" << "*.gif";
 
             QDir::Filters filters = QDir::Files;
             if (showHidden) {
@@ -339,10 +340,15 @@ void FileSystemModel::updateEntriesForDir(const QString& dir) {
 
             QString path = iter->next();
 
+            static const QSet<QString> videoExtensions = {"mp4", "webm", "mkv", "mov", "gif"};
+
             if (filter == Images) {
-                QImageReader reader(path);
-                if (!reader.canRead()) {
-                    continue;
+                const QString suffix = QFileInfo(path).suffix().toLower();
+                if (!videoExtensions.contains(suffix)) {
+                    QImageReader reader(path);
+                    if (!reader.canRead()) {
+                        continue;
+                    }
                 }
             }
 

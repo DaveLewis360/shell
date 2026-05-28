@@ -27,10 +27,11 @@ StyledClippingRect {
 
     property real blur: onSpecial ? 1 : 0
 
-    implicitWidth: Tokens.sizes.bar.innerWidth
-    implicitHeight: layout.implicitHeight + Tokens.padding.small * 2
+    // Horizontal bar: height is fixed, width is dynamic
+    implicitHeight: Tokens.sizes.bar.innerWidth
+    implicitWidth: layout.implicitWidth + Tokens.padding.small * 2
 
-    color: Colours.tPalette.m3surfaceContainer
+    color: Colours.tPalette.m3surface
     radius: Tokens.rounding.full
 
     Item {
@@ -60,7 +61,8 @@ StyledClippingRect {
             }
         }
 
-        ColumnLayout {
+        // Horizontal bar: RowLayout instead of ColumnLayout
+        RowLayout {
             id: layout
 
             anchors.centerIn: parent
@@ -79,9 +81,11 @@ StyledClippingRect {
             }
         }
 
+        // Horizontal bar: anchor left and verticalCenter
         Loader {
             asynchronous: true
-            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.left: layout.left
+            anchors.verticalCenter: parent.verticalCenter
             active: Config.bar.workspaces.activeIndicator
 
             sourceComponent: ActiveIndicator {
@@ -103,13 +107,8 @@ StyledClippingRect {
             }
         }
 
-        Behavior on scale {
-            Anim {}
-        }
-
-        Behavior on opacity {
-            Anim {}
-        }
+        Behavior on scale { Anim {} }
+        Behavior on opacity { Anim {} }
     }
 
     Loader {
@@ -129,13 +128,8 @@ StyledClippingRect {
             screen: root.screen
         }
 
-        Behavior on scale {
-            Anim {}
-        }
-
-        Behavior on opacity {
-            Anim {}
-        }
+        Behavior on scale { Anim {} }
+        Behavior on opacity { Anim {} }
     }
 
     Behavior on blur {

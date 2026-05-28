@@ -181,7 +181,7 @@ Item {
 
             anchors.fill: parent
 
-            source: Players.getArtUrl(Players.active)
+            source: (Players.active?.trackArtUrl || Players.lastArtUrl) ?? ""
             asynchronous: true
             fillMode: Image.PreserveAspectCrop
             sourceSize: {

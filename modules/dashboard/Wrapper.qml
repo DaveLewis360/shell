@@ -28,14 +28,15 @@ Item {
         }
     }
 
-    readonly property real nonAnimHeight: state === "visible" ? ((content.item as Content)?.nonAnimHeight ?? 0) : 0
+    readonly property real nonAnimHeight: shouldBeActive ? ((content.item as Content)?.nonAnimHeight ?? 0) : 0
+    readonly property real nonAnimWidth: shouldBeActive ? ((content.item as Content)?.nonAnimWidth ?? 0) : 0
     readonly property bool shouldBeActive: visibilities.dashboard && Config.dashboard.enabled
     property real offsetScale: shouldBeActive ? 0 : 1
 
+    clip: true
     visible: offsetScale < 1
-    anchors.topMargin: (-implicitHeight - 5) * offsetScale
-    implicitHeight: content.implicitHeight
-    implicitWidth: content.implicitWidth || 854 // Hard coded fallback for first open
+    implicitHeight: content.implicitHeight * (1 - offsetScale)
+    implicitWidth: content.implicitWidth || 854
     opacity: 1 - offsetScale
 
     Behavior on offsetScale {
@@ -48,7 +49,7 @@ Item {
         id: content
 
         anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
+        anchors.top: parent.top
 
         active: root.shouldBeActive || root.visible
 

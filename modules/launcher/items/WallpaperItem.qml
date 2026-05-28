@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Caelestia.Config
 import Caelestia.Models
 import qs.components
@@ -12,6 +13,11 @@ Item {
 
     required property FileSystemEntry modelData
     required property DrawerVisibilities visibilities
+
+    readonly property bool isVideo: {
+        const ext = modelData.path.split('.').pop().toLowerCase();
+        return ["mp4", "webm", "mkv", "mov", "gif"].includes(ext);
+    }
 
     scale: 0.5
     opacity: 0
@@ -57,19 +63,43 @@ Item {
 
         MaterialIcon {
             anchors.centerIn: parent
-            text: "image"
+            text: isVideo && !thumbCachingImage.status === Image.Ready ? "play_circle" : "image"
             color: Colours.tPalette.m3outline
             font.pointSize: Tokens.font.size.extraLarge * 2
             font.weight: 600
+            visible: !thumbCachingImage.status === Image.Ready
         }
 
         CachingImage {
             anchors.fill: parent
-            path: root.modelData.path
+            path: !isVideo ? root.modelData.path : ""
             smooth: !root.PathView.view.moving
             sourceSize: {
                 const dpr = (QsWindow.window as QsWindow)?.devicePixelRatio ?? 1;
                 return Qt.size(image.implicitWidth * dpr, image.implicitHeight * dpr);
+            }
+        }
+
+        CachingImage {
+            id: thumbCachingImage
+            anchors.fill: parent
+            path: isVideo ? `/tmp/wallthumbs/${Qt.md5(root.modelData.path)}.jpg` : ""
+            smooth: !root.PathView.view.moving
+            sourceSize: {
+                const dpr = (QsWindow.window as QsWindow)?.devicePixelRatio ?? 1;
+                return Qt.size(image.implicitWidth * dpr, image.implicitHeight * dpr);
+            }
+        }
+
+        Process {
+            id: launcherThumbProc
+            command: ["bash", "-c", `mkdir -p /tmp/wallthumbs && ffmpeg -y -i '${root.modelData.path}' -vframes 1 -q:v 2 '/tmp/wallthumbs/${Qt.md5(root.modelData.path)}.jpg'`]
+            running: isVideo
+            onExited: (ok, status) => {
+                if (ok) {
+                    thumbCachingImage.path = "";
+                    thumbCachingImage.path = `/tmp/wallthumbs/${Qt.md5(root.modelData.path)}.jpg`;
+                }
             }
         }
     }

@@ -19,10 +19,31 @@ Searcher {
     property string previewPath
     property string actualCurrent
     property bool previewColourLock
+    readonly property bool currentIsVideo: isVideo(actualCurrent)
+
+    readonly property list<string> videoExtensions: ["mp4", "webm", "mkv", "mov", "gif"]
+
+    function isVideo(path: string): bool {
+        const ext = path.split('.').pop().toLowerCase();
+        return videoExtensions.includes(ext);
+    }
 
     function setWallpaper(path: string): void {
         actualCurrent = path;
-        Quickshell.execDetached(["caelestia", "wallpaper", "-f", path, ...smartArg]);
+
+        Quickshell.execDetached(["bash", "-c", `echo -n "${path}" > ${currentNamePath}`]);
+
+        if (isVideo(path)) {
+            Quickshell.execDetached(["bash", "-c", `pkill mpvpaper; nohup mpvpaper -o "no-audio --loop --video-zoom=0.2" eDP-1 "${path}" >/dev/null 2>&1 &`]);
+
+            const thumbPath = "/tmp/video_thumb.jpg";
+            const cmd = `ffmpeg -y -i "${path}" -vframes 1 "${thumbPath}" && caelestia wallpaper -f "${thumbPath}" ${smartArg.join(" ")} && echo -n "${path}" > ${currentNamePath}`;
+
+            Quickshell.execDetached(["bash", "-c", cmd]);
+        } else {
+            Quickshell.execDetached(["pkill", "mpvpaper"]);
+            Quickshell.execDetached(["caelestia", "wallpaper", "-f", path, ...smartArg]);
+        }
     }
 
     function preview(path: string): void {

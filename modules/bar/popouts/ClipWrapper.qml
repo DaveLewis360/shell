@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import qs.components
-import qs.modules.bar.popouts // Need to import this module so the Wrapper type is the same as others
+import qs.modules.bar.popouts
 
 Item {
     id: root
@@ -12,25 +12,28 @@ Item {
     required property real borderThickness
 
     readonly property alias content: content
-    property real offsetScale: x > 0 || content.hasCurrent ? 0 : 1
+    // offsetScale: 1 = hidden (collapsed), 0 = visible
+    property real offsetScale: y > 0 || content.hasCurrent ? 0 : 1
 
     visible: width > 0 && height > 0
     clip: true
 
-    implicitWidth: content.implicitWidth * (1 - offsetScale)
-    implicitHeight: content.implicitHeight
+    // Horizontal bar: width follows content, height is hidden when offsetScale = 1
+    implicitWidth: content.implicitWidth
+    implicitHeight: content.implicitHeight * (1 - offsetScale)
 
-    x: content.isDetached ? (parent.width - content.nonAnimWidth) / 2 : 0
-    y: {
+    // Center horizontally on the trigger icon
+    x: {
         if (content.isDetached)
-            return (parent.height - content.nonAnimHeight) / 2;
+            return (parent.width - content.nonAnimWidth) / 2;
 
-        const off = content.currentCenter - borderThickness - content.nonAnimHeight / 2;
-        const diff = parent.height - Math.floor(off + content.nonAnimHeight);
+        const off = content.currentCenter - borderThickness - content.nonAnimWidth / 2;
+        const diff = parent.width - Math.floor(off + content.nonAnimWidth);
         if (diff < 0)
             return off + diff;
         return Math.max(off, 0);
     }
+    y: content.isDetached ? (parent.height - content.nonAnimHeight) / 2 : 0
 
     Behavior on offsetScale {
         Anim {
@@ -39,6 +42,8 @@ Item {
     }
 
     Behavior on x {
+        enabled: root.offsetScale < 1
+
         Anim {
             duration: content.animLength
             easing: content.animCurve
@@ -46,8 +51,6 @@ Item {
     }
 
     Behavior on y {
-        enabled: root.offsetScale < 1
-
         Anim {
             duration: content.animLength
             easing: content.animCurve
@@ -60,8 +63,9 @@ Item {
         screen: root.screen
         offsetScale: root.offsetScale
 
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.left: parent.left
-        anchors.leftMargin: (-implicitWidth - 5) * root.offsetScale
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        // Slide up when hidden (offsetScale = 1), flush with bottom when visible (offsetScale = 0)
+        anchors.topMargin: (-implicitHeight - 5) * root.offsetScale
     }
 }

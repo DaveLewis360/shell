@@ -14,22 +14,22 @@ StyledRect {
     id: root
 
     property color colour: Colours.palette.m3secondary
-    readonly property alias items: iconColumn
+    readonly property alias items: iconRow
 
     color: Colours.tPalette.m3surfaceContainer
     radius: Tokens.rounding.full
 
     clip: true
-    implicitWidth: Tokens.sizes.bar.innerWidth
-    implicitHeight: iconColumn.implicitHeight + Tokens.padding.normal * 2 - (Config.bar.status.showLockStatus && !Hypr.capsLock && !Hypr.numLock ? iconColumn.spacing : 0)
+    implicitHeight: Tokens.sizes.bar.innerWidth
+    implicitWidth: iconRow.implicitWidth + Tokens.padding.normal * 2 - (Config.bar.status.showLockStatus && !Hypr.capsLock && !Hypr.numLock ? iconRow.spacing : 0)
 
-    ColumnLayout {
-        id: iconColumn
+    RowLayout {
+        id: iconRow
 
-        anchors.left: parent.left
-        anchors.right: parent.right
+        anchors.top: parent.top
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: Tokens.padding.normal
+        anchors.right: parent.right
+        anchors.rightMargin: Tokens.padding.normal
 
         spacing: Tokens.spacing.smaller / 2
 
@@ -38,12 +38,12 @@ StyledRect {
             name: "lockstatus"
             active: Config.bar.status.showLockStatus
 
-            sourceComponent: ColumnLayout {
+            sourceComponent: RowLayout {
                 spacing: 0
 
                 Item {
-                    implicitWidth: capslockIcon.implicitWidth
-                    implicitHeight: Hypr.capsLock ? capslockIcon.implicitHeight : 0
+                    implicitHeight: capslockIcon.implicitHeight
+                    implicitWidth: Hypr.capsLock ? capslockIcon.implicitWidth : 0
 
                     MaterialIcon {
                         id: capslockIcon
@@ -56,25 +56,18 @@ StyledRect {
                         text: "keyboard_capslock_badge"
                         color: root.colour
 
-                        Behavior on opacity {
-                            Anim {}
-                        }
-
-                        Behavior on scale {
-                            Anim {}
-                        }
+                        Behavior on opacity { Anim {} }
+                        Behavior on scale { Anim {} }
                     }
 
-                    Behavior on implicitHeight {
-                        Anim {}
-                    }
+                    Behavior on implicitWidth { Anim {} }
                 }
 
                 Item {
-                    Layout.topMargin: Hypr.capsLock && Hypr.numLock ? iconColumn.spacing : 0
+                    Layout.leftMargin: Hypr.capsLock && Hypr.numLock ? iconRow.spacing : 0
 
-                    implicitWidth: numlockIcon.implicitWidth
-                    implicitHeight: Hypr.numLock ? numlockIcon.implicitHeight : 0
+                    implicitHeight: numlockIcon.implicitHeight
+                    implicitWidth: Hypr.numLock ? numlockIcon.implicitWidth : 0
 
                     MaterialIcon {
                         id: numlockIcon
@@ -87,18 +80,11 @@ StyledRect {
                         text: "looks_one"
                         color: root.colour
 
-                        Behavior on opacity {
-                            Anim {}
-                        }
-
-                        Behavior on scale {
-                            Anim {}
-                        }
+                        Behavior on opacity { Anim {} }
+                        Behavior on scale { Anim {} }
                     }
 
-                    Behavior on implicitHeight {
-                        Anim {}
-                    }
+                    Behavior on implicitWidth { Anim {} }
                 }
             }
         }
@@ -166,15 +152,14 @@ StyledRect {
 
         // Bluetooth section
         WrappedLoader {
-            Layout.preferredHeight: implicitHeight
+            Layout.preferredWidth: implicitWidth
 
             name: "bluetooth"
             active: Config.bar.status.showBluetooth
 
-            sourceComponent: ColumnLayout {
+            sourceComponent: RowLayout {
                 spacing: Tokens.spacing.smaller / 2
 
-                // Bluetooth icon
                 MaterialIcon {
                     animate: true
                     text: {
@@ -187,7 +172,6 @@ StyledRect {
                     color: root.colour
                 }
 
-                // Connected bluetooth devices
                 Repeater {
                     model: ScriptModel {
                         values: Bluetooth.devices.values.filter(d => d.state !== BluetoothDeviceState.Disconnected) // qmllint disable unresolved-type
@@ -225,9 +209,7 @@ StyledRect {
                 }
             }
 
-            Behavior on Layout.preferredHeight {
-                Anim {}
-            }
+            Behavior on Layout.preferredWidth { Anim {} }
         }
 
         // Battery icon
@@ -265,7 +247,7 @@ StyledRect {
         required property string name
 
         asynchronous: true
-        Layout.alignment: Qt.AlignHCenter
+        Layout.alignment: Qt.AlignVCenter
         visible: active
     }
 }

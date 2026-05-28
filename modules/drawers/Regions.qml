@@ -15,10 +15,11 @@ Region {
     readonly property real borderThickness: win.contentItem.Config.border.thickness
     readonly property real clampedThickness: win.contentItem.Config.border.clampedThickness
 
-    x: bar.clampedWidth + win.dragMaskPadding
-    y: clampedThickness + win.dragMaskPadding
-    width: win.width - bar.clampedWidth - clampedThickness - win.dragMaskPadding * 2
-    height: win.height - clampedThickness * 2 - win.dragMaskPadding * 2
+    // Horizontal bar: offset from top by bar height, full width minus borders
+    x: clampedThickness + win.dragMaskPadding
+    y: bar.clampedHeight + win.dragMaskPadding
+    width: win.width - clampedThickness * 2 - win.dragMaskPadding * 2
+    height: win.height - bar.clampedHeight - clampedThickness - win.dragMaskPadding * 2
     intersection: Intersection.Xor
 
     R {
@@ -69,14 +70,15 @@ Region {
 
     R {
         panel: root.panels.popoutsWrapper
-        width: panel.width * (1 - root.panels.popoutsWrapper.offsetScale)
+        height: panel.height * (1 - root.panels.popoutsWrapper.offsetScale)
     }
 
     component R: Region {
         required property Item panel
 
-        x: panel.x + root.bar.implicitWidth
-        y: panel.y + root.borderThickness
+        // Horizontal bar: offset from top by border, X is just border offset
+        x: panel.x + root.borderThickness
+        y: panel.y + root.bar.clampedHeight
         width: panel.width
         height: panel.height
         intersection: Intersection.Subtract
