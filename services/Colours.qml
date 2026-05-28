@@ -104,7 +104,7 @@ Singleton {
     ImageAnalyser {
         id: analyser
 
-        source: Wallpapers.current
+        source: Wallpapers.currentIsVideo ? "/tmp/video_thumb.jpg" : Wallpapers.current
     }
 
     Timer {

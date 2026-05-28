@@ -20,6 +20,7 @@ Searcher {
     property string actualCurrent
     property bool previewColourLock
     readonly property bool currentIsVideo: isVideo(actualCurrent)
+    property string activeMonitor: ""
 
     readonly property list<string> videoExtensions: ["mp4", "webm", "mkv", "mov", "gif"]
 
@@ -34,7 +35,7 @@ Searcher {
         Quickshell.execDetached(["bash", "-c", `echo -n "${path}" > ${currentNamePath}`]);
 
         if (isVideo(path)) {
-            Quickshell.execDetached(["bash", "-c", `pkill mpvpaper; nohup mpvpaper -o "no-audio --loop --video-zoom=0.2" eDP-1 "${path}" >/dev/null 2>&1 &`]);
+            Quickshell.execDetached(["bash", "-c", `pkill mpvpaper; nohup mpvpaper -o "no-audio --loop --video-zoom=0.2" "${activeMonitor}" "${path}" >/dev/null 2>&1 &`]);
 
             const thumbPath = "/tmp/video_thumb.jpg";
             const cmd = `ffmpeg -y -i "${path}" -vframes 1 "${thumbPath}" && caelestia wallpaper -f "${thumbPath}" ${smartArg.join(" ")} && echo -n "${path}" > ${currentNamePath}`;
@@ -90,6 +91,8 @@ Searcher {
         onLoaded: {
             root.actualCurrent = text().trim();
             root.previewColourLock = false;
+            if (isVideo(root.actualCurrent))
+                root.setWallpaper(root.actualCurrent);
         }
     }
 
@@ -99,6 +102,20 @@ Searcher {
         recursive: true
         path: Paths.wallsdir
         filter: FileSystemModel.Images
+    }
+
+    Process {
+        id: getMonitorProc
+
+        command: ["hyprctl", "activeworkspace", "-j"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const data = JSON.parse(text);
+                    root.activeMonitor = data.monitor;
+                } catch (e) {}
+            }
+        }
     }
 
     Process {
