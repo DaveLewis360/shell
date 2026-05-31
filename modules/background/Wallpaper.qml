@@ -18,10 +18,8 @@ Item {
     property bool completed
 
     onSourceChanged: {
-        if (isVideo) {
-            current = null; // hide image layers; the video layer takes over
-            return;
-        }
+        if (isVideo)
+            return; // keep last image underneath (covered by the video layer); preserves one/two fade state
         if (!source)
             current = null;
         else if (current === one)
