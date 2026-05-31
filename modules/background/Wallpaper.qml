@@ -147,9 +147,9 @@ Item {
                 audioOutput: AudioOutput {
                     muted: true
                 }
-                // Qt6 MediaPlayer has no autoPlay; restart on every source change (incl. video->video).
-                onSourceChanged: play()
-                Component.onCompleted: play()
+                // Qt6 has no autoPlay: start once media has loaded. Covers the video->video case
+                // where the Loader keeps one instance and only the source changes.
+                onMediaStatusChanged: if (mediaStatus === MediaPlayer.LoadedMedia || mediaStatus === MediaPlayer.BufferedMedia) play()
             }
         }
     }
