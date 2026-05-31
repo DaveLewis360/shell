@@ -27,9 +27,33 @@ GridView {
     model: Wallpapers.list
 
     clip: true
+    focus: true
+    keyNavigationWraps: true
 
     StyledScrollBar.vertical: StyledScrollBar {
         flickable: root
+    }
+
+    property bool _keyNav: false
+
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
+            if (currentItem && currentItem.modelData)
+                Wallpapers.setWallpaper(currentItem.modelData.path);
+            event.accepted = true;
+        } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Down ||
+                   event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
+            _keyNav = true;
+        }
+    }
+
+    onCurrentIndexChanged: {
+        if (_keyNav) {
+            _keyNav = false;
+            const entry = model[currentIndex];
+            if (entry && entry.path)
+                Wallpapers.setWallpaper(entry.path);
+        }
     }
 
     delegate: Item {

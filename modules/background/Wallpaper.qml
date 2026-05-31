@@ -14,6 +14,7 @@ Item {
     property string source: Wallpapers.current
     property Image current: one
     property bool completed
+    property string prevSource: ""
 
     function isVideoPath(path: string): bool {
         const ext = path.split('.').pop().toLowerCase();
@@ -27,6 +28,7 @@ Item {
             two.update();
         else
             one.update();
+        prevSource = source;
     }
 
     Component.onCompleted: {
@@ -116,33 +118,61 @@ Item {
         id: img
 
         property bool isVideoSource: false
+        property real videoOpacity: 1.0
+
+        Timer {
+            id: videoFadeTimer
+            interval: 2000
+            running: false
+            onTriggered: { img.videoOpacity = 0; }
+        }
 
         function update(): void {
             isVideoSource = root.isVideoPath(root.source);
 
+            videoFadeTimer.stop();
+            videoOpacity = 1.0;
+
             if (!isVideoSource) {
-                path = root.source;
+                if (path === root.source)
+                    root.current = this;
+                else
+                    path = root.source;
+            } else if (root.prevSource && !root.isVideoPath(root.prevSource)) {
+                if (path === root.prevSource)
+                    root.current = this;
+                else
+                    path = root.prevSource;
             } else {
                 path = "";
+                root.current = this;
             }
 
-            if (path === root.source || isVideoSource)
-                root.current = this;
+            if (isVideoSource)
+                videoFadeTimer.start();
         }
 
         anchors.fill: parent
 
-        opacity: (root.current === img && !img.isVideoSource) ? 1 : 0
-        scale: (root.current === img) ? 1 : (Wallpapers.showPreview ? 1 : 0.8)
+        opacity: 0
+        scale: Wallpapers.showPreview ? 1 : 0.8
+
+        Behavior on opacity { Anim {} }
+        Behavior on scale { Anim {} }
 
         onStatusChanged: {
             if (status === Image.Ready)
                 root.current = this;
         }
 
-        onIsVideoSourceChanged: {
-            if (isVideoSource)
-                root.current = this;
+        states: State {
+            name: "visible"
+            when: root.current === img
+
+            PropertyChanges {
+                img.opacity: img.isVideoSource ? img.videoOpacity : 1
+                img.scale: 1
+            }
         }
 
         transitions: Transition {

@@ -29,16 +29,17 @@ Searcher {
         return videoExtensions.includes(ext);
     }
 
-    function setWallpaper(path: string): void {
-        actualCurrent = path;
+    property string _lastSetPath: ""
 
-        Quickshell.execDetached(["bash", "-c", `echo -n "${path}" > ${currentNamePath}`]);
+    function setWallpaper(path: string): void {
+        _lastSetPath = path;
+        actualCurrent = path;
 
         if (isVideo(path)) {
             Quickshell.execDetached(["bash", "-c", `pkill mpvpaper; nohup mpvpaper -o "no-audio --loop --video-zoom=0.2" "${activeMonitor}" "${path}" >/dev/null 2>&1 &`]);
 
             const thumbPath = "/tmp/video_thumb.jpg";
-            const cmd = `ffmpeg -y -i "${path}" -vframes 1 "${thumbPath}" && caelestia wallpaper -f "${thumbPath}" ${smartArg.join(" ")} && echo -n "${path}" > ${currentNamePath}`;
+            const cmd = `ffmpeg -y -i "${path}" -vframes 1 "${thumbPath}" && caelestia wallpaper -f "${thumbPath}" ${smartArg.join(" ")}; echo -n "${path}" > ${currentNamePath}`;
 
             Quickshell.execDetached(["bash", "-c", cmd]);
         } else {
@@ -89,10 +90,18 @@ Searcher {
         watchChanges: true
         onFileChanged: reload()
         onLoaded: {
-            root.actualCurrent = text().trim();
+            const savedPath = text().trim();
+            if (!savedPath || savedPath === root.actualCurrent)
+                return;
+            if (savedPath.startsWith("/tmp/"))
+                return;
+            if (savedPath !== root._lastSetPath)
+                return;
+            root.actualCurrent = savedPath;
             root.previewColourLock = false;
-            if (isVideo(root.actualCurrent))
-                root.setWallpaper(root.actualCurrent);
+            if (isVideo(savedPath) && root.activeMonitor !== "") {
+                Quickshell.execDetached(["bash", "-c", `pkill mpvpaper; nohup mpvpaper -o "no-audio --loop --video-zoom=0.2" "${root.activeMonitor}" "${savedPath}" >/dev/null 2>&1 &`]);
+            }
         }
     }
 
@@ -108,11 +117,15 @@ Searcher {
         id: getMonitorProc
 
         command: ["hyprctl", "activeworkspace", "-j"]
+        running: true
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
                     const data = JSON.parse(text);
                     root.activeMonitor = data.monitor;
+                    if (isVideo(root.actualCurrent)) {
+                        Quickshell.execDetached(["bash", "-c", `pkill mpvpaper; nohup mpvpaper -o "no-audio --loop --video-zoom=0.2" "${root.activeMonitor}" "${root.actualCurrent}" >/dev/null 2>&1 &`]);
+                    }
                 } catch (e) {}
             }
         }
