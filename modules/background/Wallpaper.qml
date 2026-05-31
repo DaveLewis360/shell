@@ -120,11 +120,16 @@ Item {
         active: root.isVideo
 
         sourceComponent: Item {
-            // Poster frame underneath the video so there is never a black flash
-            // (shown until the first video frame arrives, and during startup).
+            // Opaque base so the image layer underneath can never bleed through ("random image").
+            Rectangle {
+                anchors.fill: parent
+                color: "black"
+            }
+
+            // Poster frame of the *current source* (preview-aware) until the first video frame.
             CachingImage {
                 anchors.fill: parent
-                path: Wallpapers.currentColourSource
+                path: Wallpapers.thumbFor(root.source)
                 fillMode: Image.PreserveAspectCrop
             }
 
@@ -142,6 +147,8 @@ Item {
                 audioOutput: AudioOutput {
                     muted: true
                 }
+                // Qt6 MediaPlayer has no autoPlay; restart on every source change (incl. video->video).
+                onSourceChanged: play()
                 Component.onCompleted: play()
             }
         }
