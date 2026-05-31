@@ -24,9 +24,11 @@ Item {
     property bool completed
 
     onSourceChanged: {
+        // Compute the type from the fresh `source`: the `isVideo` binding lags one change behind
+        // inside this handler, which previously let a video leak into imageSource (-> black).
         if (!root.source)
             root.imageSource = "";
-        else if (!root.isVideo)
+        else if (!Images.isVideoByName(root.source))
             root.imageSource = root.source;
         // video: keep imageSource as the last image
     }
@@ -43,7 +45,7 @@ Item {
     }
 
     Component.onCompleted: {
-        if (root.source && !root.isVideo)
+        if (root.source && !Images.isVideoByName(root.source))
             root.imageSource = root.source;
         completed = true;
     }
