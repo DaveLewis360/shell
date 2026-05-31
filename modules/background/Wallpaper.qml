@@ -14,28 +14,38 @@ Item {
 
     property string source: Wallpapers.current
     readonly property bool isVideo: root.source ? Images.isVideoByName(root.source) : false
+
+    // The image the picture layers display. Holds the last *image* path: while a video plays it
+    // stays put (the video layer covers it), so the image layers never load a video and the
+    // video->image transition never flashes black. Empty only when there is no wallpaper at all.
+    property string imageSource: ""
+
     property Image current: one
     property bool completed
 
     onSourceChanged: {
-        if (isVideo)
-            return; // keep last image underneath (covered by the video layer); preserves one/two fade state
-        if (!source)
-            current = null;
-        else if (current === one)
+        if (!root.source)
+            root.imageSource = "";
+        else if (!root.isVideo)
+            root.imageSource = root.source;
+        // video: keep imageSource as the last image
+    }
+
+    onImageSourceChanged: {
+        if (!root.imageSource) {
+            root.current = null;
+            return;
+        }
+        if (root.current === one)
             two.update();
         else
             one.update();
     }
 
     Component.onCompleted: {
-        if (source && !isVideo)
-            Qt.callLater(() => {
-                one.update();
-                completed = true;
-            });
-        else
-            completed = true;
+        if (root.source && !root.isVideo)
+            root.imageSource = root.source;
+        completed = true;
     }
 
     Loader {
@@ -158,10 +168,12 @@ Item {
         id: img
 
         function update(): void {
-            if (path === root.source)
+            if (!root.imageSource)
+                return;
+            if (path === root.imageSource)
                 root.current = this;
             else
-                path = root.source;
+                path = root.imageSource;
         }
 
         anchors.fill: parent
