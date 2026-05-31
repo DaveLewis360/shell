@@ -23,7 +23,7 @@ Item {
             name: "background"
             WlrLayershell.exclusionMode: ExclusionMode.Ignore
             WlrLayershell.layer: WlrLayer.Background
-            color: contentItem.Config.background.wallpaperEnabled && !Wallpapers.currentIsVideo ? "black" : "transparent"
+            color: contentItem.Config.background.wallpaperEnabled ? "black" : "transparent"
             surfaceFormat.opaque: false
 
             anchors.top: true

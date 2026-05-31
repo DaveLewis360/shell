@@ -34,25 +34,11 @@ GridView {
         flickable: root
     }
 
-    property bool _keyNav: false
-
     Keys.onPressed: (event) => {
         if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
             if (currentItem && currentItem.modelData)
                 Wallpapers.setWallpaper(currentItem.modelData.path);
             event.accepted = true;
-        } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Down ||
-                   event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
-            _keyNav = true;
-        }
-    }
-
-    onCurrentIndexChanged: {
-        if (_keyNav) {
-            _keyNav = false;
-            const entry = model[currentIndex];
-            if (entry && entry.path)
-                Wallpapers.setWallpaper(entry.path);
         }
     }
 
@@ -62,10 +48,7 @@ GridView {
         readonly property bool isCurrent: modelData && modelData.path === Wallpapers.actualCurrent
         readonly property real itemMargin: Tokens.spacing.normal / 2
         readonly property real itemRadius: Tokens.rounding.normal
-        readonly property bool isVideo: {
-            const ext = modelData.path.split('.').pop().toLowerCase();
-            return ["mp4", "webm", "mkv", "mov", "gif"].includes(ext);
-        }
+        readonly property bool isVideo: Images.isVideoByName(modelData.path)
 
         width: root.cellWidth
         height: root.cellHeight
@@ -122,17 +105,17 @@ GridView {
             QtObject {
                 id: videoThumb
 
-                readonly property string thumbPath: isVideo ? `/tmp/wallthumbs/${Qt.md5(modelData.path)}.jpg` : ""
+                readonly property string thumbPath: isVideo ? Wallpapers.thumbFor(modelData.path) : ""
             }
 
             Process {
                 id: genThumbProc
 
-                command: ["bash", "-c", `mkdir -p /tmp/wallthumbs && ffmpeg -y -i '${modelData.path}' -vframes 1 -q:v 2 '${videoThumb.thumbPath}'`]
+                command: ["bash", "-c", `mkdir -p '${Wallpapers.thumbsDir}'; [ -f '${videoThumb.thumbPath}' ] || ffmpeg -y -i '${modelData.path}' -vframes 1 -q:v 2 '${videoThumb.thumbPath}'`]
                 running: isVideo
 
-                onExited: (ok, status) => {
-                    if (ok) {
+                onExited: (exitCode, exitStatus) => {
+                    if (exitCode === 0) {
                         cachingImage.path = "";
                         cachingImage.path = videoThumb.thumbPath;
                     }

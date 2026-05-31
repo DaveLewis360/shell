@@ -7,6 +7,7 @@ import qs.components
 import qs.components.effects
 import qs.components.images
 import qs.services
+import qs.utils
 
 Item {
     id: root
@@ -14,10 +15,8 @@ Item {
     required property FileSystemEntry modelData
     required property DrawerVisibilities visibilities
 
-    readonly property bool isVideo: {
-        const ext = modelData.path.split('.').pop().toLowerCase();
-        return ["mp4", "webm", "mkv", "mov", "gif"].includes(ext);
-    }
+    readonly property bool isVideo: Images.isVideoByName(modelData.path)
+    readonly property string thumb: isVideo ? Wallpapers.thumbFor(modelData.path) : ""
 
     scale: 0.5
     opacity: 0
@@ -63,11 +62,11 @@ Item {
 
         MaterialIcon {
             anchors.centerIn: parent
-            text: isVideo && !thumbCachingImage.status === Image.Ready ? "play_circle" : "image"
+            text: isVideo && thumbCachingImage.status !== Image.Ready ? "play_circle" : "image"
             color: Colours.tPalette.m3outline
             font.pointSize: Tokens.font.size.extraLarge * 2
             font.weight: 600
-            visible: !thumbCachingImage.status === Image.Ready
+            visible: thumbCachingImage.status !== Image.Ready
         }
 
         CachingImage {
@@ -83,7 +82,7 @@ Item {
         CachingImage {
             id: thumbCachingImage
             anchors.fill: parent
-            path: isVideo ? `/tmp/wallthumbs/${Qt.md5(root.modelData.path)}.jpg` : ""
+            path: root.thumb
             smooth: !root.PathView.view.moving
             sourceSize: {
                 const dpr = (QsWindow.window as QsWindow)?.devicePixelRatio ?? 1;
@@ -93,12 +92,12 @@ Item {
 
         Process {
             id: launcherThumbProc
-            command: ["bash", "-c", `mkdir -p /tmp/wallthumbs && ffmpeg -y -i '${root.modelData.path}' -vframes 1 -q:v 2 '/tmp/wallthumbs/${Qt.md5(root.modelData.path)}.jpg'`]
+            command: ["bash", "-c", `mkdir -p '${Wallpapers.thumbsDir}'; [ -f '${root.thumb}' ] || ffmpeg -y -i '${root.modelData.path}' -vframes 1 -q:v 2 '${root.thumb}'`]
             running: isVideo
-            onExited: (ok, status) => {
-                if (ok) {
+            onExited: (exitCode, exitStatus) => {
+                if (exitCode === 0) {
                     thumbCachingImage.path = "";
-                    thumbCachingImage.path = `/tmp/wallthumbs/${Qt.md5(root.modelData.path)}.jpg`;
+                    thumbCachingImage.path = root.thumb;
                 }
             }
         }

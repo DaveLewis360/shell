@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtMultimedia
 import Caelestia.Config
 import qs.components
 import qs.components.filedialog
@@ -12,31 +13,31 @@ Item {
     id: root
 
     property string source: Wallpapers.current
+    readonly property bool isVideo: root.source ? Images.isVideoByName(root.source) : false
     property Image current: one
     property bool completed
-    property string prevSource: ""
-
-    function isVideoPath(path: string): bool {
-        const ext = path.split('.').pop().toLowerCase();
-        return ["mp4", "webm", "mkv", "mov", "gif"].includes(ext);
-    }
 
     onSourceChanged: {
+        if (isVideo) {
+            current = null; // hide image layers; the video layer takes over
+            return;
+        }
         if (!source)
             current = null;
         else if (current === one)
             two.update();
         else
             one.update();
-        prevSource = source;
     }
 
     Component.onCompleted: {
-        if (source)
+        if (source && !isVideo)
             Qt.callLater(() => {
                 one.update();
                 completed = true;
             });
+        else
+            completed = true;
     }
 
     Loader {
@@ -114,51 +115,54 @@ Item {
         id: two
     }
 
+    // Native video wallpaper: rendered in-window, per-monitor (via Background's Variants),
+    // so no external process, no layer-ordering issues, no monitor race.
+    Loader {
+        anchors.fill: parent
+        active: root.isVideo
+
+        sourceComponent: Item {
+            // Poster frame underneath the video so there is never a black flash
+            // (shown until the first video frame arrives, and during startup).
+            CachingImage {
+                anchors.fill: parent
+                path: Wallpapers.currentColourSource
+                fillMode: Image.PreserveAspectCrop
+            }
+
+            VideoOutput {
+                id: videoOut
+
+                anchors.fill: parent
+                fillMode: VideoOutput.PreserveAspectCrop
+            }
+
+            MediaPlayer {
+                videoOutput: videoOut
+                source: root.source ? Qt.resolvedUrl(root.source) : ""
+                loops: MediaPlayer.Infinite
+                audioOutput: AudioOutput {
+                    muted: true
+                }
+                Component.onCompleted: play()
+            }
+        }
+    }
+
     component Img: CachingImage {
         id: img
 
-        property bool isVideoSource: false
-        property real videoOpacity: 1.0
-
-        Timer {
-            id: videoFadeTimer
-            interval: 2000
-            running: false
-            onTriggered: { img.videoOpacity = 0; }
-        }
-
         function update(): void {
-            isVideoSource = root.isVideoPath(root.source);
-
-            videoFadeTimer.stop();
-            videoOpacity = 1.0;
-
-            if (!isVideoSource) {
-                if (path === root.source)
-                    root.current = this;
-                else
-                    path = root.source;
-            } else if (root.prevSource && !root.isVideoPath(root.prevSource)) {
-                if (path === root.prevSource)
-                    root.current = this;
-                else
-                    path = root.prevSource;
-            } else {
-                path = "";
+            if (path === root.source)
                 root.current = this;
-            }
-
-            if (isVideoSource)
-                videoFadeTimer.start();
+            else
+                path = root.source;
         }
 
         anchors.fill: parent
 
         opacity: 0
         scale: Wallpapers.showPreview ? 1 : 0.8
-
-        Behavior on opacity { Anim {} }
-        Behavior on scale { Anim {} }
 
         onStatusChanged: {
             if (status === Image.Ready)
@@ -170,7 +174,7 @@ Item {
             when: root.current === img
 
             PropertyChanges {
-                img.opacity: img.isVideoSource ? img.videoOpacity : 1
+                img.opacity: 1
                 img.scale: 1
             }
         }

@@ -19,31 +19,25 @@ Searcher {
     property string previewPath
     property string actualCurrent
     property bool previewColourLock
-    readonly property bool currentIsVideo: isVideo(actualCurrent)
-    property string activeMonitor: ""
+    readonly property bool currentIsVideo: Images.isVideoByName(actualCurrent)
 
-    readonly property list<string> videoExtensions: ["mp4", "webm", "mkv", "mov", "gif"]
-
-    function isVideo(path: string): bool {
-        const ext = path.split('.').pop().toLowerCase();
-        return videoExtensions.includes(ext);
+    // Stable, content-addressed thumbnail cache (shared by launcher, control center & colour analysis)
+    readonly property string thumbsDir: `${Paths.cache}/wallpaper/thumbnails`
+    function thumbFor(path: string): string {
+        return `${thumbsDir}/${Qt.md5(path)}.jpg`;
     }
 
-    property string _lastSetPath: ""
+    // Source the colour scheme/luminance reads from (video -> its poster frame)
+    readonly property string currentColourSource: currentIsVideo ? thumbFor(actualCurrent) : actualCurrent
 
     function setWallpaper(path: string): void {
-        _lastSetPath = path;
         actualCurrent = path;
 
-        if (isVideo(path)) {
-            Quickshell.execDetached(["bash", "-c", `pkill mpvpaper; nohup mpvpaper -o "no-audio --loop --video-zoom=0.2" "${activeMonitor}" "${path}" >/dev/null 2>&1 &`]);
-
-            const thumbPath = "/tmp/video_thumb.jpg";
-            const cmd = `ffmpeg -y -i "${path}" -vframes 1 "${thumbPath}" && caelestia wallpaper -f "${thumbPath}" ${smartArg.join(" ")}; echo -n "${path}" > ${currentNamePath}`;
-
-            Quickshell.execDetached(["bash", "-c", cmd]);
+        if (Images.isVideoByName(path)) {
+            // Generate poster frame (lazily) + derive scheme from it; persist the *video* path.
+            const thumb = thumbFor(path);
+            Quickshell.execDetached(["bash", "-c", `mkdir -p '${thumbsDir}'; [ -f '${thumb}' ] || ffmpeg -y -i '${path}' -vframes 1 -q:v 2 '${thumb}'; caelestia wallpaper -f '${thumb}' ${smartArg.join(" ")}; echo -n '${path}' > '${currentNamePath}'`]);
         } else {
-            Quickshell.execDetached(["pkill", "mpvpaper"]);
             Quickshell.execDetached(["caelestia", "wallpaper", "-f", path, ...smartArg]);
         }
     }
@@ -91,17 +85,10 @@ Searcher {
         onFileChanged: reload()
         onLoaded: {
             const savedPath = text().trim();
-            if (!savedPath || savedPath === root.actualCurrent)
-                return;
-            if (savedPath.startsWith("/tmp/"))
-                return;
-            if (savedPath !== root._lastSetPath)
+            if (!savedPath || savedPath.startsWith("/tmp/"))
                 return;
             root.actualCurrent = savedPath;
             root.previewColourLock = false;
-            if (isVideo(savedPath) && root.activeMonitor !== "") {
-                Quickshell.execDetached(["bash", "-c", `pkill mpvpaper; nohup mpvpaper -o "no-audio --loop --video-zoom=0.2" "${root.activeMonitor}" "${savedPath}" >/dev/null 2>&1 &`]);
-            }
         }
     }
 
@@ -113,23 +100,8 @@ Searcher {
         filter: FileSystemModel.Images
     }
 
-    Process {
-        id: getMonitorProc
-
-        command: ["hyprctl", "activeworkspace", "-j"]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const data = JSON.parse(text);
-                    root.activeMonitor = data.monitor;
-                    if (isVideo(root.actualCurrent)) {
-                        Quickshell.execDetached(["bash", "-c", `pkill mpvpaper; nohup mpvpaper -o "no-audio --loop --video-zoom=0.2" "${root.activeMonitor}" "${root.actualCurrent}" >/dev/null 2>&1 &`]);
-                    }
-                } catch (e) {}
-            }
-        }
-    }
+    // Native VideoOutput renders video now; clean up any leftover mpvpaper from the old approach.
+    Component.onCompleted: Quickshell.execDetached(["pkill", "mpvpaper"])
 
     Process {
         id: getPreviewColoursProc
