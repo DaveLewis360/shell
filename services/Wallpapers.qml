@@ -29,13 +29,27 @@ Searcher {
         return category;
     }
 
+    function isVideo(path: string): bool {
+        return path.endsWith(".mp4") || path.endsWith(".webm") || path.endsWith(".mkv");
+    }
+
+    readonly property string thumbsDir: `${Paths.cache}/wallpaper/thumbnails`
+    function thumbFor(path: string): string {
+        return `${thumbsDir}/${Qt.md5(path)}.jpg`;
+    }
+
     function setRandom(): void {
         Quickshell.execDetached(["caelestia", "wallpaper", "-r", ...smartArg]);
     }
 
     function setWallpaper(path: string): void {
         actualCurrent = path;
-        Quickshell.execDetached(["caelestia", "wallpaper", "-f", path, ...smartArg]);
+        if (isVideo(path)) {
+            const thumb = thumbFor(path);
+            Quickshell.execDetached(["bash", "-c", `mkdir -p '${thumbsDir}'; [ -f '${thumb}' ] || ffmpeg -y -i '${path}' -vframes 1 -q:v 2 '${thumb}'; caelestia wallpaper -f '${thumb}' ${smartArg.join(" ")}; echo -n '${path}' > '${currentNamePath}'`]);
+        } else {
+            Quickshell.execDetached(["caelestia", "wallpaper", "-f", path, ...smartArg]);
+        }
     }
 
     function preview(path: string): void {
@@ -114,7 +128,7 @@ Searcher {
     Process {
         id: getPreviewColoursProc
 
-        command: ["caelestia", "wallpaper", "-p", root.previewPath, ...root.smartArg]
+        command: ["caelestia", "wallpaper", "-p", root.isVideo(root.previewPath) ? root.thumbFor(root.previewPath) : root.previewPath, ...root.smartArg]
         stdout: StdioCollector {
             onStreamFinished: {
                 Colours.load(text, true);
