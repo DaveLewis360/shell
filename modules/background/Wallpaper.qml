@@ -41,7 +41,9 @@ Item {
         if (root.current === one)
             two.update();
         else
-            one.update();
+            current = imgComp.createObject(this, {
+                path: source
+            });
     }
 
     Component.onCompleted: {
@@ -61,12 +63,12 @@ Item {
 
             Row {
                 anchors.centerIn: parent
-                spacing: Tokens.spacing.large
+                spacing: Tokens.spacing.largeIncreased
 
                 MaterialIcon {
                     text: "sentiment_stressed"
                     color: Colours.palette.m3onSurfaceVariant
-                    font.pointSize: Tokens.font.size.extraLarge * 5
+                    fontStyle: Tokens.font.icon.builders.extraLarge.scale(5).build()
                 }
 
                 Column {
@@ -76,13 +78,12 @@ Item {
                     StyledText {
                         text: qsTr("Wallpaper missing?")
                         color: Colours.palette.m3onSurfaceVariant
-                        font.pointSize: Tokens.font.size.extraLarge * 2
-                        font.bold: true
+                        font: Tokens.font.body.builders.large.size(28 * 2).weight(Font.Bold).build()
                     }
 
                     StyledRect {
-                        implicitWidth: selectWallText.implicitWidth + Tokens.padding.large * 2
-                        implicitHeight: selectWallText.implicitHeight + Tokens.padding.small * 2
+                        implicitWidth: selectWallText.implicitWidth + Tokens.padding.extraLargeIncreased
+                        implicitHeight: selectWallText.implicitHeight + Tokens.padding.small
 
                         radius: Tokens.rounding.full
                         color: Colours.palette.m3primary
@@ -109,7 +110,7 @@ Item {
 
                             text: qsTr("Set it now!")
                             color: Colours.palette.m3onPrimary
-                            font.pointSize: Tokens.font.size.large
+                            font: Tokens.font.body.large
                         }
                     }
                 }
@@ -117,13 +118,11 @@ Item {
         }
     }
 
-    Img {
-        id: one
-    }
+    Component {
+        id: imgComp
 
-    Img {
-        id: two
-    }
+        CachingImage {
+            id: img
 
     // Native video wallpaper: rendered in-window, per-monitor (via Background's Variants),
     // so no external process, no layer-ordering issues, no monitor race.
@@ -178,30 +177,24 @@ Item {
                 path = root.imageSource;
         }
 
-        anchors.fill: parent
-
-        opacity: 0
-        scale: Wallpapers.showPreview ? 1 : 0.8
-
-        onStatusChanged: {
-            if (status === Image.Ready)
-                root.current = this;
-        }
-
-        states: State {
-            name: "visible"
-            when: root.current === img
-
-            PropertyChanges {
-                img.opacity: 1
-                img.scale: 1
+            onStatusChanged: {
+                if (status === Image.Ready)
+                    anim.start();
             }
-        }
 
-        transitions: Transition {
-            Anim {
-                target: img
-                properties: "opacity,scale"
+            Anim on opacity {
+                id: anim
+
+                type: Anim.SlowEffects
+                running: false
+                from: 0
+                to: 1
+            }
+
+            Timer {
+                running: root.current !== img && root.current?.status === Image.Ready
+                interval: anim.duration
+                onTriggered: img.destroy()
             }
         }
     }

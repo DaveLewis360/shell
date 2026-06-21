@@ -110,8 +110,7 @@ Item {
         anchors.left: icon.right
         anchors.leftMargin: Tokens.spacing.small
 
-        font.pointSize: metrics.font.pointSize
-        font.family: metrics.font.family
+        font: metrics.font
         color: root.colour
         opacity: root.current === this ? 1 : 0
 

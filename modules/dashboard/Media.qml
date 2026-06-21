@@ -1,25 +1,18 @@
-pragma ComponentBehavior: Bound
-
+import "media"
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Shapes
-import Quickshell
-import Quickshell.Services.Mpris
+import M3Shapes
 import Caelestia.Config
-import Caelestia.Services
 import qs.components
-import qs.components.controls
 import qs.services
-import qs.utils
 
 Item {
     id: root
 
     required property DrawerVisibilities visibilities
-    readonly property bool needsKeyboard: lyricMenuOpen
 
-    readonly property real nonAnimHeight: Math.max(cover.implicitHeight + Tokens.sizes.dashboard.mediaVisualiserSize * 2, lyricMenuOpen ? lyricMenu.implicitHeight : details.implicitHeight, bongocat.implicitHeight) + Tokens.padding.large * 2
-    readonly property real detailsHeightWithoutLyrics: details.implicitHeight - lyricsViewInDetails.implicitHeight
+    implicitWidth: Tokens.sizes.dashboard.mediaTabWidth
+    implicitHeight: Tokens.sizes.dashboard.mediaTabHeight
 
     property bool lyricMenuOpen: false
     property bool lyricsShowing: LyricsService.lyricsVisible && LyricsService.model.count != 0
@@ -435,79 +428,132 @@ Item {
     }
 
     RowLayout {
-        id: playerChanger
+        anchors.fill: parent
+        anchors.margins: Tokens.padding.large
+        spacing: Tokens.spacing.extraLarge
 
-        parent: !root.lyricsShowingDebounced ? details : leftSection
-        Layout.alignment: Qt.AlignHCenter
-        spacing: Tokens.spacing.small
+        CoverVisualiser {
+            Layout.fillHeight: true
+            implicitWidth: Tokens.sizes.dashboard.mediaSectionWidth
+        }
 
-        PlayerControl {
-            type: IconButton.Text
-            icon: "move_up"
-            inactiveOnColour: Colours.palette.m3secondary
-            padding: Tokens.padding.small
-            font.pointSize: Tokens.font.size.large
-            disabled: !Players.active?.canRaise
-            onClicked: {
-                Players.active?.raise();
-                root.visibilities.dashboard = false;
+        Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
+            state: Players.active ? "" : "noMedia"
+
+            states: State {
+                name: "noMedia"
+
+                PropertyChanges {
+                    noMedia.opacity: 1
+                    content.opacity: 0
+                }
             }
-        }
 
-        SplitButton {
-            id: playerSelector
+            transitions: [
+                Transition {
+                    from: ""
 
-            disabled: !Players.list.length
-            active: menuItems.find(m => m.modelData === Players.active) ?? menuItems[0] ?? null
-            menu.onItemSelected: item => Players.manualActive = (item as PlayerItem).modelData
+                    SequentialAnimation {
+                        Anim {
+                            target: content
+                            property: "opacity"
+                            type: Anim.DefaultEffects
+                        }
+                        Anim {
+                            target: noMedia
+                            property: "opacity"
+                            type: Anim.SlowEffects
+                        }
+                    }
+                },
+                Transition {
+                    to: ""
 
-            menuItems: playerList.instances
-            fallbackIcon: "music_off"
-            fallbackText: qsTr("No players")
+                    SequentialAnimation {
+                        Anim {
+                            target: noMedia
+                            property: "opacity"
+                            type: Anim.DefaultEffects
+                        }
+                        Anim {
+                            target: content
+                            property: "opacity"
+                            type: Anim.SlowEffects
+                        }
+                    }
+                }
+            ]
 
-            label.Layout.maximumWidth: slider.implicitWidth * 0.28
-            label.elide: Text.ElideRight
+            Loader {
+                id: noMedia
 
-            stateLayer.disabled: true
-            menuOnTop: true
+                anchors.centerIn: parent
+                anchors.horizontalCenterOffset: -Tokens.padding.extraLarge * 2
+                asynchronous: true
+                active: opacity > 0
+                opacity: 0
 
-            Variants {
-                id: playerList
+                sourceComponent: ColumnLayout {
+                    spacing: Tokens.spacing.small
 
-                model: Players.list
+                    MaterialShape {
+                        Layout.topMargin: (pathBounds().height - implicitSize) / 2
+                        Layout.bottomMargin: (pathBounds().height - implicitSize) / 2 + Tokens.spacing.small
+                        Layout.alignment: Qt.AlignHCenter
+                        color: Colours.palette.m3primaryContainer
+                        implicitSize: icon.implicitHeight + Tokens.padding.extraLarge * 2
+                        shape: MaterialShape.ClamShell
 
-                PlayerItem {}
+                        Behavior on color {
+                            CAnim {}
+                        }
+
+                        MaterialIcon {
+                            id: icon
+
+                            anchors.centerIn: parent
+                            text: "queue_music"
+                            fontStyle: Tokens.font.icon.builders.large.scale(2).build()
+                            color: Colours.palette.m3onPrimaryContainer
+                        }
+                    }
+
+                    StyledText {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: qsTr("Nothing playing")
+                        font: Tokens.font.headline.medium
+                    }
+
+                    StyledText {
+                        text: qsTr("Play something for it to show up here!")
+                        color: Colours.palette.m3onSurfaceVariant
+                        font: Tokens.font.body.large
+                    }
+                }
             }
-        }
 
-        PlayerControl {
-            type: IconButton.Text
-            icon: "delete"
-            inactiveOnColour: Colours.palette.m3error
-            padding: Tokens.padding.small
-            font.pointSize: Tokens.font.size.large
-            disabled: !Players.active?.canQuit
-            onClicked: Players.active?.quit()
-        }
-    }
+            Loader {
+                id: content
 
-    component PlayerItem: MenuItem {
-        required property MprisPlayer modelData
+                anchors.fill: parent
+                asynchronous: true
+                active: opacity > 0
 
-        icon: modelData === Players.active ? "check" : ""
-        text: Players.getIdentity(modelData)
-        activeIcon: "animated_images"
-    }
+                sourceComponent: RowLayout {
+                    spacing: Tokens.spacing.extraLarge
 
-    component PlayerControl: IconButton {
-        Layout.preferredWidth: implicitWidth + (stateLayer.pressed ? Tokens.padding.large : internalChecked ? Tokens.padding.smaller : 0)
-        radius: stateLayer.pressed ? Tokens.rounding.small / 2 : internalChecked ? Tokens.rounding.small : implicitHeight / 2
-        radiusAnim.duration: Tokens.anim.durations.expressiveFastSpatial
-        radiusAnim.easing: Tokens.anim.expressiveFastSpatial
+                    Details {
+                        Layout.fillWidth: true
+                    }
 
-        Behavior on Layout.preferredWidth {
-            Anim {
-                type: Anim.FastSpatial
+                    LyricsAndSelector {
+                        Layout.fillHeight: true
+                        implicitWidth: Tokens.sizes.dashboard.mediaSectionWidth
+                    }
+                }
             }
         }
     }

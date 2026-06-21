@@ -31,7 +31,7 @@ StyledRect {
         anchors.right: parent.right
         anchors.rightMargin: Tokens.padding.normal
 
-        spacing: Tokens.spacing.smaller / 2
+        spacing: Tokens.spacing.medium / 2
 
         // Lock keys status
         WrappedLoader {
@@ -122,7 +122,7 @@ StyledRect {
                 animate: true
                 text: Hypr.kbLayout
                 color: root.colour
-                font.family: Tokens.font.family.mono
+                font: Tokens.font.mono.medium
             }
         }
 
@@ -227,15 +227,7 @@ StyledRect {
                             return "rocket_launch";
                         return "balance";
                     }
-
-                    const perc = UPower.displayDevice.percentage;
-                    const charging = [UPowerDeviceState.Charging, UPowerDeviceState.FullyCharged, UPowerDeviceState.PendingCharge].includes(UPower.displayDevice.state);
-                    if (perc === 1)
-                        return charging ? "battery_charging_full" : "battery_full";
-                    let level = Math.floor(perc * 7);
-                    if (charging && (level === 4 || level === 1))
-                        level--;
-                    return charging ? `battery_charging_${(level + 3) * 10}` : `battery_${level}_bar`;
+                    return Icons.getBatteryIcon(UPower.displayDevice.percentage, [UPowerDeviceState.Charging, UPowerDeviceState.FullyCharged, UPowerDeviceState.PendingCharge].includes(UPower.displayDevice.state));
                 }
                 color: !UPower.onBattery || UPower.displayDevice.percentage > 0.2 ? root.colour : Colours.palette.m3error
                 fill: 1

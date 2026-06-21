@@ -80,7 +80,7 @@ Item {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
 
-        active: root.shouldBeVisible || root.visible
+        active: root.shouldBeVisible
 
         sourceComponent: Bar {
             height: root.contentHeight

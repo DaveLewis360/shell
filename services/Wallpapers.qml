@@ -13,6 +13,7 @@ Searcher {
 
     readonly property string currentNamePath: `${Paths.state}/wallpaper/path.txt`
     readonly property list<string> smartArg: GlobalConfig.services.smartScheme ? [] : ["--no-smart"]
+    readonly property string fallback: Quickshell.shellPath("assets/wallpaper.webp")
 
     property bool showPreview: false
     readonly property string current: showPreview ? previewPath : actualCurrent
@@ -52,7 +53,14 @@ Searcher {
 
     function stopPreview(): void {
         showPreview = false;
-        if (!previewColourLock)
+        if (previewColourLock)
+            pendingPreviewClear = true;
+        else
+            Colours.showPreview = false;
+    }
+
+    onPreviewColourLockChanged: {
+        if (!previewColourLock && pendingPreviewClear)
             Colours.showPreview = false;
     }
 
@@ -82,6 +90,7 @@ Searcher {
     FileView {
         path: root.currentNamePath
         watchChanges: true
+        printErrors: false
         onFileChanged: reload()
         onLoaded: {
             const savedPath = text().trim();
@@ -89,6 +98,11 @@ Searcher {
                 return;
             root.actualCurrent = savedPath;
             root.previewColourLock = false;
+        }
+        onLoadFailed: {
+            root.actualCurrent = root.fallback;
+            root.previewColourLock = false;
+            Quickshell.execDetached(["caelestia", "wallpaper", "-f", root.fallback, ...root.smartArg]);
         }
     }
 

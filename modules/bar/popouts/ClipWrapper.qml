@@ -36,9 +36,7 @@ Item {
     y: content.isDetached ? (parent.height - content.nonAnimHeight) / 2 : 0
 
     Behavior on offsetScale {
-        Anim {
-            type: Anim.DefaultSpatial
-        }
+        Anim {}
     }
 
     Behavior on x {

@@ -68,6 +68,7 @@ Item {
         sidebarPanel: sidebar
         osdPanel: osdWrapper
         sessionPanel: sessionWrapper
+        utilitiesPanel: utilities
 
         anchors.top: parent.top
         anchors.right: parent.right
@@ -139,7 +140,7 @@ Item {
 
         anchors.bottom: sidebar.visible ? parent.bottom : utilities.top
         anchors.right: sidebar.left
-        anchors.margins: Tokens.padding.normal
+        anchors.margins: Tokens.padding.medium
     }
 
     Sidebar.Wrapper {
@@ -150,5 +151,6 @@ Item {
         anchors.top: notifications.bottom
         anchors.bottom: utilities.top
         anchors.right: parent.right
+        anchors.topMargin: -notifications.anchors.topMargin
     }
 }

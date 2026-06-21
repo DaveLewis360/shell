@@ -18,7 +18,7 @@ Item {
     readonly property string activeSpecial: (GlobalConfig.bar.workspaces.perMonitorWorkspaces ? monitor : Hypr.focusedMonitor)?.lastIpcObject.specialWorkspace?.name ?? ""
 
     layer.enabled: true
-    layer.effect: OpacityMask {
+    layer.effect: Mask {
         maskSource: mask
     }
 
@@ -84,7 +84,7 @@ Item {
         id: view
 
         anchors.fill: parent
-        spacing: Tokens.spacing.normal
+        spacing: Tokens.spacing.medium
         interactive: false
 
         orientation: ListView.Horizontal
@@ -219,9 +219,9 @@ Item {
 
             const ws = view.itemAt(event.x, event.y) as SpecialWsDelegate;
             if (ws?.modelData)
-                Hypr.dispatch(`togglespecialworkspace ${ws.modelData.name.slice(8)}`);
+                Hypr.dispatch(Hypr.usingLua ? `hl.dsp.workspace.toggle_special("${ws.modelData.name.slice(8)}")` : `togglespecialworkspace ${ws.modelData.name.slice(8)}`);
             else
-                Hypr.dispatch("togglespecialworkspace special");
+                Hypr.dispatch(Hypr.usingLua ? 'hl.dsp.workspace.toggle_special("special")' : "togglespecialworkspace special");
         }
     }
 

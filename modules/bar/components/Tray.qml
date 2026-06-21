@@ -14,7 +14,7 @@ StyledRect {
     readonly property alias items: items
     readonly property alias expandIcon: expandIcon
 
-    readonly property int padding: Config.bar.tray.background ? Tokens.padding.normal : Tokens.padding.small
+    readonly property int padding: Config.bar.tray.background ? Tokens.padding.medium : Tokens.padding.extraSmall
     readonly property int spacing: Config.bar.tray.background ? Tokens.spacing.small : 0
 
     property bool expanded
