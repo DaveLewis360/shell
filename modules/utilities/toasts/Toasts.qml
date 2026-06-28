@@ -47,7 +47,7 @@ Item {
                     toasts.push(toast);
                     if (!toast.closed) {
                         count++;
-                        if (count > root.Config.utilities.maxToasts)
+                        if (count > Config.utilities.maxToasts)
                             break;
                     }
                 }

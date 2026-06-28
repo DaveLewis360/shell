@@ -33,7 +33,7 @@ Slider {
     handle: Item {
         id: handle
 
-        property alias moving: icon.moving
+        property bool moving
 
         y: root.visualPosition * (root.availableHeight - height)
         implicitWidth: root.width
@@ -62,35 +62,59 @@ Slider {
                 acceptedButtons: Qt.NoButton
             }
 
-            MaterialIcon {
-                id: icon
-
-                property bool moving
-
+            Item {
+                id: iconWrapper
                 anchors.centerIn: parent
-                anchors.verticalCenterOffset: 1
-                text: moving ? Math.round(root.value * 100) : root.icon
-                color: Colours.palette.m3inverseOnSurface
-                font: moving ? Tokens.font.body.small : Tokens.font.icon.medium
 
-                Behavior on moving {
-                    SequentialAnimation {
-                        Anim {
-                            target: icon
-                            property: "scale"
-                            to: 0.3
-                            duration: Tokens.anim.durations.small / 2
-                            easing: Tokens.anim.standardAccel
-                        }
-                        PropertyAction {}
-                        Anim {
-                            target: icon
-                            property: "scale"
-                            to: 1
-                            duration: Tokens.anim.durations.normal / 2
-                            easing: Tokens.anim.standardDecel
-                        }
+                property bool moving: handle.moving
+
+                function update(): void {
+                    icon.animate = !moving;
+                    icon.visible = !moving;
+                    number.visible = moving;
+                }
+
+                onMovingChanged: anim.restart()
+
+                SequentialAnimation {
+                    id: anim
+
+                    Anim {
+                        target: iconWrapper
+                        property: "scale"
+                        to: 0
+                        duration: Tokens.anim.durations.normal / 2
+                        easing: Tokens.anim.standardAccel
                     }
+                    ScriptAction {
+                        script: iconWrapper.update()
+                    }
+                    Anim {
+                        target: iconWrapper
+                        property: "scale"
+                        to: 1
+                        duration: Tokens.anim.durations.normal / 2
+                        easing: Tokens.anim.standardDecel
+                    }
+                }
+
+                MaterialIcon {
+                    id: icon
+                    text: root.icon
+                    color: Colours.palette.m3inverseOnSurface
+                    anchors.centerIn: parent
+                    fontStyle.pointSize: Tokens.font.size.larger
+                    visible: true
+                }
+
+                StyledText {
+                    id: number
+                    text: Math.round(root.value * 100)
+                    color: Colours.palette.m3inverseOnSurface
+                    anchors.centerIn: parent
+                    font.family: Tokens.font.family.sans
+                    font.pointSize: Tokens.font.size.small
+                    visible: false
                 }
             }
         }

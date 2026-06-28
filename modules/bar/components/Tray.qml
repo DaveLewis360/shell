@@ -19,27 +19,27 @@ StyledRect {
 
     property bool expanded
 
-    readonly property real nonAnimHeight: {
+    readonly property real nonAnimWidth: {
         if (!Config.bar.tray.compact)
-            return layout.implicitHeight + padding * 2;
-        return (expanded ? expandIcon.implicitHeight + layout.implicitHeight + spacing : expandIcon.implicitHeight) + padding * 2;
+            return layout.implicitWidth + padding * 2;
+        return (expanded ? expandIcon.implicitWidth + layout.implicitWidth + spacing : expandIcon.implicitWidth) + padding * 2;
     }
 
     clip: true
-    visible: height > 0
+    visible: width > 0
 
-    implicitWidth: Tokens.sizes.bar.innerWidth
-    implicitHeight: nonAnimHeight
+    implicitHeight: Tokens.sizes.bar.innerWidth
+    implicitWidth: nonAnimWidth
 
     color: Qt.alpha(Colours.tPalette.m3surfaceContainer, (Config.bar.tray.background && items.count > 0) ? Colours.tPalette.m3surfaceContainer.a : 0)
     radius: Tokens.rounding.full
 
-    Column {
+    Row {
         id: layout
 
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: parent.top
-        anchors.topMargin: root.padding
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.left: parent.left
+        anchors.leftMargin: root.padding
         spacing: Tokens.spacing.small
 
         opacity: root.expanded || !Config.bar.tray.compact ? 1 : 0
@@ -86,37 +86,37 @@ StyledRect {
 
         asynchronous: true
 
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.right: parent.right
 
         active: Config.bar.tray.compact && items.count > 0
 
         sourceComponent: Item {
-            implicitWidth: expandIconInner.implicitWidth
-            implicitHeight: expandIconInner.implicitHeight - Tokens.padding.small
+            implicitHeight: expandIconInner.implicitHeight
+            implicitWidth: expandIconInner.implicitWidth - Tokens.padding.small
 
             MaterialIcon {
                 id: expandIconInner
 
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: Config.bar.tray.background ? Tokens.padding.extraSmall : -Tokens.padding.extraSmall
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.right: parent.right
+                anchors.rightMargin: Config.bar.tray.background ? Tokens.padding.extraSmall : -Tokens.padding.extraSmall
                 text: "expand_less"
                 fontStyle: Tokens.font.icon.large
-                rotation: root.expanded ? 180 : 0
+                rotation: root.expanded ? 90 : -90
 
                 Behavior on rotation {
                     Anim {}
                 }
 
-                Behavior on anchors.bottomMargin {
+                Behavior on anchors.rightMargin {
                     Anim {}
                 }
             }
         }
     }
 
-    Behavior on implicitHeight {
+    Behavior on implicitWidth {
         Anim {}
     }
 }

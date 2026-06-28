@@ -13,6 +13,15 @@ import qs.utils
 Item {
     id: root
 
+    Timer {
+        interval: 1000
+        running: true
+        repeat: true
+        onTriggered: {
+            console.log("[SpecialWs Debug] activeSpecial:", root.activeSpecial, "currentIndex:", view.currentIndex, "currentItem:", view.currentItem, "size:", view.currentItem ? view.currentItem.size : "null", "model:", model.values ? model.values.length : "no values");
+        }
+    }
+
     required property ShellScreen screen
     readonly property HyprlandMonitor monitor: Hypr.monitorFor(screen)
     readonly property string activeSpecial: (GlobalConfig.bar.workspaces.perMonitorWorkspaces ? monitor : Hypr.focusedMonitor)?.lastIpcObject.specialWorkspace?.name ?? ""
@@ -34,7 +43,7 @@ Item {
             radius: Tokens.rounding.full
 
             gradient: Gradient {
-                orientation: Gradient.Vertical
+                orientation: Gradient.Horizontal
 
                 GradientStop {
                     position: 0
@@ -57,12 +66,12 @@ Item {
 
         Rectangle {
             anchors.top: parent.top
+            anchors.bottom: parent.bottom
             anchors.left: parent.left
-            anchors.right: parent.right
 
             radius: Tokens.rounding.full
-            implicitHeight: parent.height / 2
-            opacity: view.contentY > 0 ? 0 : 1
+            implicitWidth: parent.width / 2
+            opacity: view.contentX > 0 ? 0 : 1
 
             Behavior on opacity {
                 Anim {
@@ -72,13 +81,13 @@ Item {
         }
 
         Rectangle {
+            anchors.top: parent.top
             anchors.bottom: parent.bottom
-            anchors.left: parent.left
             anchors.right: parent.right
 
             radius: Tokens.rounding.full
-            implicitHeight: parent.height / 2
-            opacity: view.contentY < view.contentHeight - parent.height + Tokens.padding.extraSmall ? 0 : 1
+            implicitWidth: parent.width / 2
+            opacity: view.contentX < view.contentWidth - parent.width + Tokens.padding.extraSmall ? 0 : 1
 
             Behavior on opacity {
                 Anim {
@@ -89,29 +98,30 @@ Item {
     }
 
     ListView {
+        orientation: ListView.Horizontal
         id: view
 
         anchors.fill: parent
         spacing: Tokens.spacing.medium
         interactive: false
 
-        currentIndex: model.values.findIndex(w => w.name === root.activeSpecial)
-        onCurrentIndexChanged: currentIndex = Qt.binding(() => model.values.findIndex(w => w.name === root.activeSpecial))
+        currentIndex: model.values.findIndex(w => w.name === root.activeSpecial || w.name === "special:" + root.activeSpecial)
+        onCurrentIndexChanged: currentIndex = Qt.binding(() => model.values.findIndex(w => w.name === root.activeSpecial || w.name === "special:" + root.activeSpecial))
 
         model: ScriptModel {
             values: Hypr.workspaces.values.filter(w => w.name.startsWith("special:") && (!GlobalConfig.bar.workspaces.perMonitorWorkspaces || w.monitor === root.monitor))
         }
 
         preferredHighlightBegin: 0
-        preferredHighlightEnd: height
+        preferredHighlightEnd: width
         highlightRangeMode: ListView.StrictlyEnforceRange
 
         highlightFollowsCurrentItem: false
         highlight: Item {
-            y: view.currentItem?.y ?? 0
-            implicitHeight: (view.currentItem as SpecialWsDelegate)?.size ?? 0
+            x: view.currentItem?.x ?? 0
+            implicitWidth: view.currentItem ? view.currentItem.size : 0
 
-            Behavior on y {
+            Behavior on x {
                 Anim {}
             }
         }
@@ -172,11 +182,11 @@ Item {
             StyledClippingRect {
                 id: indicator
 
-                anchors.left: parent.left
-                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
 
-                y: (view.currentItem?.y ?? 0) - view.contentY
-                implicitHeight: (view.currentItem as SpecialWsDelegate)?.size ?? 0
+                x: (view.currentItem?.x ?? 0) - view.contentX
+                implicitWidth: view.currentItem ? view.currentItem.size : 0
 
                 color: Colours.palette.m3tertiary
                 radius: Tokens.rounding.full
@@ -186,43 +196,44 @@ Item {
                     sourceColor: Colours.palette.m3onSurface
                     colorizationColor: Colours.palette.m3onTertiary
 
-                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.verticalCenter: parent.verticalCenter
 
-                    x: 0
-                    y: -indicator.y
+                    y: 0
+                    x: -indicator.x
                     implicitWidth: view.width
                     implicitHeight: view.height
                 }
 
-                Behavior on y {
+                Behavior on x {
                     Anim {
                         type: Anim.Emphasized
                     }
                 }
 
-                Behavior on implicitHeight {
+                Behavior on implicitWidth {
                     Anim {
                         type: Anim.Emphasized
                     }
                 }
             }
         }
+
     }
 
     MouseArea {
-        property real startY
+        property real startX
 
         anchors.fill: view
 
         drag.target: view.contentItem
-        drag.axis: Drag.YAxis
-        drag.maximumY: 0
-        drag.minimumY: Math.min(0, view.height - view.contentHeight - Tokens.padding.extraSmall)
+        drag.axis: Drag.XAxis
+        drag.maximumX: 0
+        drag.minimumX: Math.min(0, view.width - view.contentWidth - Tokens.padding.extraSmall)
 
-        onPressed: event => startY = event.y
+        onPressed: event => startX = event.x
 
         onClicked: event => {
-            if (Math.abs(event.y - startY) > drag.threshold)
+            if (Math.abs(event.x - startX) > drag.threshold)
                 return;
 
             const ws = view.itemAt(event.x, event.y) as SpecialWsDelegate;
@@ -233,17 +244,17 @@ Item {
         }
     }
 
-    component SpecialWsDelegate: ColumnLayout {
+    component SpecialWsDelegate: RowLayout {
         id: ws
 
         required property HyprlandWorkspace modelData
-        readonly property int size: label.Layout.preferredHeight + (hasWindows ? windows.implicitHeight + Tokens.padding.extraSmall : 0)
+        readonly property int size: label.Layout.preferredWidth + (hasWindows ? windows.implicitWidth + Tokens.padding.extraSmall : 0)
         property int wsId
         property string icon
         property bool hasWindows
 
-        anchors.left: view.contentItem.left
-        anchors.right: view.contentItem.right
+        anchors.top: view.contentItem.top
+        anchors.bottom: view.contentItem.bottom
 
         spacing: 0
 
@@ -267,7 +278,7 @@ Item {
 
             function onLastIpcObjectChanged(): void {
                 if (ws.modelData)
-                    ws.hasWindows = root.Config.bar.workspaces.showWindowsOnSpecialWorkspaces && ws.modelData.lastIpcObject.windows > 0;
+                    ws.hasWindows = Config.bar.workspaces.showWindowsOnSpecialWorkspaces && ws.modelData.lastIpcObject.windows > 0;
             }
 
             target: ws.modelData
@@ -276,10 +287,10 @@ Item {
         Connections {
             function onShowWindowsOnSpecialWorkspacesChanged(): void {
                 if (ws.modelData)
-                    ws.hasWindows = root.Config.bar.workspaces.showWindowsOnSpecialWorkspaces && ws.modelData.lastIpcObject.windows > 0;
+                    ws.hasWindows = Config.bar.workspaces.showWindowsOnSpecialWorkspaces && ws.modelData.lastIpcObject.windows > 0;
             }
 
-            target: root.Config.bar.workspaces
+            target: Config.bar.workspaces
         }
 
         Loader {
@@ -287,27 +298,25 @@ Item {
 
             asynchronous: true
 
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
-            Layout.preferredHeight: Tokens.sizes.bar.innerWidth - Tokens.padding.small
+            Layout.alignment: Qt.AlignVCenter | Qt.AlignLeft
+            Layout.preferredWidth: Tokens.sizes.bar.innerWidth - Tokens.padding.small
 
             sourceComponent: ws.icon.length === 1 ? letterComp : iconComp
 
             Component {
                 id: iconComp
-
                 MaterialIcon {
                     fill: 1
                     text: ws.icon
-                    verticalAlignment: Qt.AlignVCenter
+                    horizontalAlignment: Qt.AlignHCenter
                 }
             }
 
             Component {
                 id: letterComp
-
                 StyledText {
                     text: ws.icon
-                    verticalAlignment: Qt.AlignVCenter
+                    horizontalAlignment: Qt.AlignHCenter
                 }
             }
         }
@@ -317,14 +326,14 @@ Item {
 
             asynchronous: true
 
-            Layout.alignment: Qt.AlignHCenter
-            Layout.fillHeight: true
-            Layout.preferredHeight: implicitHeight
+            Layout.alignment: Qt.AlignVCenter
+            Layout.fillWidth: true
+            Layout.leftMargin: -Tokens.sizes.bar.innerWidth / 10
 
             visible: active
             active: ws.hasWindows
 
-            sourceComponent: Column {
+            sourceComponent: Row {
                 spacing: 0
 
                 add: Transition {
@@ -351,7 +360,7 @@ Item {
                     model: ScriptModel {
                         values: {
                             const windows = Hypr.toplevels.values.filter(c => c.workspace?.id === ws.wsId);
-                            const maxIcons = root.Config.bar.workspaces.maxWindowIcons;
+                            const maxIcons = Config.bar.workspaces.maxWindowIcons;
                             return maxIcons > 0 ? windows.slice(0, maxIcons) : windows;
                         }
                     }
@@ -366,7 +375,7 @@ Item {
                 }
             }
 
-            Behavior on Layout.preferredHeight {
+            Behavior on Layout.preferredWidth {
                 Anim {}
             }
         }

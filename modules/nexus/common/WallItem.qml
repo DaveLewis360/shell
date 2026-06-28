@@ -11,11 +11,25 @@ import qs.services
 Item {
     id: root
 
-    property alias source: img.source
+    property string source: ""
     property alias text: label.text
     property alias radius: imgWrapper.radius
     property alias imgHeight: imgWrapper.implicitHeight
     property bool fillLabel: true
+
+    readonly property bool isVideo: Images.isVideoByName(root.source)
+    readonly property string effectiveSource: {
+        if (!root.source) return "";
+        let s = root.source;
+        if (s.startsWith("file://")) s = s.substring(7);
+        if (Images.isVideoByName(s)) {
+            const thumb = Wallpapers.thumbFor(s);
+            // Fire and forget thumbnail generation if it doesn't exist
+            Quickshell.execDetached(["bash", "-c", `[ -f '${thumb}' ] || (mkdir -p $(dirname '${thumb}') && ffmpeg -y -i '${s}' -vframes 1 -q:v 2 '${thumb}') > /dev/null 2>&1`]);
+            return "file://" + thumb;
+        }
+        return s.includes("://") ? s : ("file://" + s);
+    }
 
     signal clicked
 
@@ -77,12 +91,33 @@ Item {
                 }
                 retainWhileLoading: true
                 opacity: status === Image.Ready ? 1 : 0
+                source: root.effectiveSource
+
+                Timer {
+                    interval: 500
+                    repeat: true
+                    running: img.status === Image.Error && root.isVideo
+                    onTriggered: {
+                        const s = img.source;
+                        img.source = "";
+                        img.source = s;
+                    }
+                }
 
                 Behavior on opacity {
                     Anim {
                         type: Anim.SlowEffects
                     }
                 }
+            }
+
+            MaterialIcon {
+                anchors.centerIn: parent
+                visible: root.isVideo
+                opacity: 0.8
+                text: "play_circle"
+                color: Colours.palette.m3onSurface
+                fontStyle: Tokens.font.icon.extraLarge
             }
         }
 

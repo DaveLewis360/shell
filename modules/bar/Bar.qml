@@ -10,14 +10,50 @@ import Caelestia.Config
 import qs.components
 import qs.services
 
-ColumnLayout {
+Item {
     id: root
 
     required property ShellScreen screen
     required property DrawerVisibilities visibilities
     required property BarPopouts.Wrapper popouts
     required property bool fullscreen
-    readonly property int vPadding: Tokens.padding.large
+    readonly property int hPadding: Tokens.padding.large
+
+
+    property real rightPartX: {
+        let xVal = width; // Default to right edge if no fillWidth item found
+        for (let i = repeater.count - 1; i >= 0; i--) {
+            const loader = repeater.itemAt(i) as WrappedLoader;
+            if (loader && loader.enabled && loader.modelData) {
+                const entryId = loader.modelData.id;
+                if (entryId === "activeWindow" || entryId === "spacer") {
+                    xVal = loader.x + loader.width;
+                    break;
+                }
+            }
+        }
+        return xVal;
+    }
+
+    property real workspacesX: {
+        for (let i = 0; i < repeater.count; i++) {
+            const loader = repeater.itemAt(i) as WrappedLoader;
+            if (loader && loader.enabled && loader.modelData && loader.modelData.id === "workspaces") {
+                return loader.x;
+            }
+        }
+        return 0;
+    }
+
+    property real workspacesWidth: {
+        for (let i = 0; i < repeater.count; i++) {
+            const loader = repeater.itemAt(i) as WrappedLoader;
+            if (loader && loader.enabled && loader.modelData && loader.modelData.id === "workspaces") {
+                return loader.width;
+            }
+        }
+        return 0;
+    }
 
     function closeTray(): void {
         if (!Config.bar.tray.compact)
@@ -31,8 +67,8 @@ ColumnLayout {
         }
     }
 
-    function checkPopout(y: real): void {
-        const ch = childAt(width / 2, y) as WrappedLoader;
+    function checkPopout(x: real): void {
+        const ch = layout.childAt(x, layout.height / 2) as WrappedLoader;
 
         if (ch?.entryId !== "tray")
             closeTray();
@@ -43,24 +79,26 @@ ColumnLayout {
         }
 
         const id = ch.entryId;
-        const top = ch.y;
+        const left = ch.x;
 
         if (id === "statusIcons" && Config.bar.popouts.statusIcons) {
             const items = (ch.item as StatusIcons).items;
-            const icon = items.childAt(items.width / 2, mapToItem(items, 0, y).y);
+            const icon = items.childAt(mapToItem(items, x, 0).x, items.height / 2);
             if (icon) {
                 popouts.currentName = icon.name;
-                popouts.currentCenter = Qt.binding(() => icon.mapToItem(root, 0, icon.implicitHeight / 2).y);
+                popouts.currentCenter = Qt.binding(() => icon.mapToItem(root, icon.implicitWidth / 2, 0).x);
                 popouts.hasCurrent = true;
+            } else {
+                popouts.hasCurrent = false;
             }
         } else if (id === "tray" && Config.bar.popouts.tray) {
             const tray = ch.item as Tray;
-            if (!Config.bar.tray.compact || (tray.expanded && !tray.expandIcon.contains(mapToItem(tray.expandIcon, tray.implicitWidth / 2, y)))) {
-                const index = Math.floor(((y - top - tray.padding * 2 + tray.spacing) / tray.layout.implicitHeight) * tray.items.count);
+            if (!Config.bar.tray.compact || (tray.expanded && !tray.expandIcon.contains(mapToItem(tray.expandIcon, x, tray.implicitHeight / 2)))) {
+                const index = Math.floor(((x - left - tray.padding * 2 + tray.spacing) / tray.layout.implicitWidth) * tray.items.count);
                 const trayItem = tray.items.itemAt(index);
                 if (trayItem) {
                     popouts.currentName = `traymenu${index}`;
-                    popouts.currentCenter = Qt.binding(() => trayItem.mapToItem(root, 0, trayItem.implicitHeight / 2).y);
+                    popouts.currentCenter = Qt.binding(() => trayItem.mapToItem(root, trayItem.implicitWidth / 2, 0).x);
                     popouts.hasCurrent = true;
                 } else {
                     popouts.hasCurrent = false;
@@ -71,13 +109,15 @@ ColumnLayout {
             }
         } else if (id === "activeWindow" && Config.bar.popouts.activeWindow && Config.bar.activeWindow.showOnHover) {
             popouts.currentName = id.toLowerCase();
-            popouts.currentCenter = (ch.item as Item).mapToItem(root, 0, (ch.item as Item).implicitHeight / 2).y ?? 0;
+            popouts.currentCenter = (ch.item as Item).mapToItem(root, (ch.item as Item).implicitWidth / 2, 0).x ?? 0;
             popouts.hasCurrent = true;
+        } else {
+            popouts.hasCurrent = false;
         }
     }
 
-    function handleWheel(y: real, angleDelta: point): void {
-        const ch = childAt(width / 2, y) as WrappedLoader;
+    function handleWheel(x: real, angleDelta: point): void {
+        const ch = layout.childAt(x, layout.height / 2) as WrappedLoader;
         if (ch?.entryId === "workspaces" && Config.bar.scrollActions.workspaces) {
             // Workspace scroll
             const mon = (GlobalConfig.bar.workspaces.perMonitorWorkspaces ? Hypr.monitorFor(screen) : Hypr.focusedMonitor);
@@ -86,8 +126,8 @@ ColumnLayout {
                 Hypr.dispatch(Hypr.usingLua ? `hl.dsp.workspace.toggle_special("${specialWs.slice(8)}")` : `togglespecialworkspace ${specialWs.slice(8)}`);
             else if (angleDelta.y < 0 || (GlobalConfig.bar.workspaces.perMonitorWorkspaces ? mon.activeWorkspace?.id : Hypr.activeWsId) > 1)
                 Hypr.dispatch(Hypr.usingLua ? `hl.dsp.focus({ workspace = "r${angleDelta.y > 0 ? "-" : "+"}1" })` : `workspace r${angleDelta.y > 0 ? "-" : "+"}1`);
-        } else if (y < screen.height / 2 && Config.bar.scrollActions.volume) {
-            // Volume scroll on top half
+        } else if (x < screen.width / 2 && Config.bar.scrollActions.volume) {
+            // Volume scroll on left half
             if (angleDelta.y > 0)
                 Audio.incrementVolume();
             else if (angleDelta.y < 0)
@@ -102,7 +142,10 @@ ColumnLayout {
         }
     }
 
-    spacing: Tokens.spacing.medium
+    RowLayout {
+        id: layout
+        anchors.fill: parent
+        spacing: Tokens.spacing.medium
 
     Repeater {
         id: repeater
@@ -115,7 +158,7 @@ ColumnLayout {
             DelegateChoice {
                 roleValue: "spacer"
                 delegate: WrappedLoader {
-                    Layout.fillHeight: enabled
+                    Layout.fillWidth: enabled
                 }
             }
             DelegateChoice {
@@ -176,10 +219,12 @@ ColumnLayout {
         }
     }
 
+    }
+
     component WrappedLoader: Loader {
         required enabled
         required property var modelData
-        readonly property string entryId: modelData.id
+        readonly property string entryId: modelData ? modelData.id : ""
         required property int index
 
         function findFirstEnabled(): Item {
@@ -202,13 +247,21 @@ ColumnLayout {
         }
 
         asynchronous: true
-        Layout.alignment: Qt.AlignHCenter
+        Layout.alignment: Qt.AlignVCenter
 
         // Cursed ahh thing to add padding to first and last enabled components
-        Layout.topMargin: findFirstEnabled() === this ? root.vPadding : 0
-        Layout.bottomMargin: findLastEnabled() === this ? root.vPadding : 0
+        Layout.leftMargin: findFirstEnabled() === this ? root.hPadding : 0
+        Layout.rightMargin: findLastEnabled() === this ? root.hPadding : 0
 
         visible: enabled
         active: enabled
+    }
+
+    // Mini Dashboard Pill, anchored to the top center
+    MiniDash {
+        id: miniDash
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        visibilities: root.visibilities
     }
 }

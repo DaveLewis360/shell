@@ -56,12 +56,12 @@ Loader {
 
                 // Bottom left
                 ShapePath {
-                    startX: -root.Config.border.smoothing * 2
-                    startY: shape.height - root.Config.border.thickness
+                    startX: -Config.border.smoothing * 2
+                    startY: shape.height - Config.border.thickness
                     strokeWidth: 0
                     fillGradient: LinearGradient {
                         orientation: LinearGradient.Horizontal
-                        x1: -root.Config.border.smoothing * 2
+                        x1: -Config.border.smoothing * 2
 
                         GradientStop {
                             position: 0
@@ -74,34 +74,34 @@ Loader {
                     }
 
                     PathLine {
-                        relativeX: root.Config.border.smoothing
+                        relativeX: Config.border.smoothing
                         relativeY: 0
                     }
                     PathCubic {
-                        relativeX: root.Config.border.smoothing
-                        relativeY: -root.Config.border.smoothing
-                        relativeControl1X: root.Config.border.smoothing * 0.93
-                        relativeControl1Y: -root.Config.border.smoothing * 0.07
-                        relativeControl2X: root.Config.border.smoothing * 0.93
-                        relativeControl2Y: -root.Config.border.smoothing * 0.07
+                        relativeX: Config.border.smoothing
+                        relativeY: -Config.border.smoothing
+                        relativeControl1X: Config.border.smoothing * 0.93
+                        relativeControl1Y: -Config.border.smoothing * 0.07
+                        relativeControl2X: Config.border.smoothing * 0.93
+                        relativeControl2Y: -Config.border.smoothing * 0.07
                     }
                     PathLine {
                         relativeX: 0
-                        relativeY: root.Config.border.smoothing + root.Config.border.thickness
+                        relativeY: Config.border.smoothing + Config.border.thickness
                     }
                     PathLine {
-                        relativeX: -root.Config.border.smoothing * 2
+                        relativeX: -Config.border.smoothing * 2
                         relativeY: 0
                     }
                 }
 
                 // Top right curve
                 ShapePath {
-                    startX: shape.width - root.Config.border.smoothing - root.Config.border.thickness + (1 - root.deformMatrix.m11) * shape.width / 2
+                    startX: shape.width - Config.border.smoothing - Config.border.thickness + (1 - root.deformMatrix.m11) * shape.width / 2
                     strokeWidth: 0
                     fillGradient: LinearGradient {
                         orientation: LinearGradient.Vertical
-                        y1: -root.Config.border.smoothing * 2
+                        y1: -Config.border.smoothing * 2
 
                         GradientStop {
                             position: 0
@@ -114,19 +114,19 @@ Loader {
                     }
 
                     PathCubic {
-                        relativeX: root.Config.border.smoothing
-                        relativeY: -root.Config.border.smoothing
-                        relativeControl1X: root.Config.border.smoothing * 0.93
-                        relativeControl1Y: -root.Config.border.smoothing * 0.07
-                        relativeControl2X: root.Config.border.smoothing * 0.93
-                        relativeControl2Y: -root.Config.border.smoothing * 0.07
+                        relativeX: Config.border.smoothing
+                        relativeY: -Config.border.smoothing
+                        relativeControl1X: Config.border.smoothing * 0.93
+                        relativeControl1Y: -Config.border.smoothing * 0.07
+                        relativeControl2X: Config.border.smoothing * 0.93
+                        relativeControl2Y: -Config.border.smoothing * 0.07
                     }
                     PathLine {
                         relativeX: 0
-                        relativeY: -root.Config.border.smoothing
+                        relativeY: -Config.border.smoothing
                     }
                     PathLine {
-                        relativeX: root.Config.border.thickness
+                        relativeX: Config.border.thickness
                         relativeY: 0
                     }
                     PathLine {

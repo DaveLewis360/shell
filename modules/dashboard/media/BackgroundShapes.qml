@@ -38,7 +38,7 @@ Item {
     }
 
     FrameAnimation {
-        running: root.visible && root.width > 0 && root.height > 0 && (Players.active?.isPlaying ?? false)
+        running: root.visible && root.width > 0 && root.height > 0 && (Players.active ? Players.active.isPlaying : false)
         onTriggered: {
             const dt = frameTime;
             for (let i = 0; i < shapes.count; i++) {
@@ -76,7 +76,7 @@ Item {
         implicitSize: root.minSize + (index / root.count) * (root.maxSize - root.minSize)
         shape: root.shapePool[Math.floor(Math.random() * root.shapePool.length)]
         color: [Colours.palette.m3primaryContainer, Colours.palette.m3secondaryContainer, Colours.palette.m3tertiaryContainer, Colours.palette.m3outlineVariant][colourIdx]
-        opacity: Colours.light ? root.lightOpacities[colourIdx] : root.darkOpacities[colourIdx]
+        opacity: (Players.active && Players.active.isPlaying ? 1 : 0) * (Colours.light ? root.lightOpacities[colourIdx] : root.darkOpacities[colourIdx])
         rotation: root.rand(0, 360)
 
         Component.onCompleted: {

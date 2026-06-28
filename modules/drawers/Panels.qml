@@ -36,7 +36,7 @@ Item {
 
     anchors.fill: parent
     anchors.margins: borderThickness
-    anchors.leftMargin: bar.implicitWidth
+    anchors.topMargin: bar.implicitHeight
 
     Item {
         id: osdWrapper
@@ -111,6 +111,7 @@ Item {
         id: dashboard
 
         visibilities: root.visibilities
+        barHeight: root.bar.implicitHeight
 
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top

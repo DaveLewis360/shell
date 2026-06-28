@@ -13,29 +13,33 @@ Searcher {
 
     readonly property string currentNamePath: `${Paths.state}/wallpaper/path.txt`
     readonly property list<string> smartArg: GlobalConfig.services.smartScheme ? [] : ["--no-smart"]
-    readonly property string fallback: Quickshell.shellPath("assets/wallpaper.webp")
 
     property bool showPreview: false
     readonly property string current: showPreview ? previewPath : actualCurrent
     property string previewPath
     property string actualCurrent
     property bool previewColourLock
-    property bool pendingPreviewClear
+    readonly property bool currentIsVideo: Images.isVideoByName(actualCurrent)
 
-    function getCategoryFor(w: FileSystemEntry): string {
-        let category = w.parentDir.slice(Paths.wallsdir.length + 1);
-        if (category.includes("/"))
-            category = category.slice(0, category.indexOf("/"));
-        return category;
+    // Stable, content-addressed thumbnail cache (shared by launcher, control center & colour analysis)
+    readonly property string thumbsDir: `${Paths.cache}/wallpaper/thumbnails`
+    function thumbFor(path: string): string {
+        return `${thumbsDir}/${Qt.md5(path)}.jpg`;
     }
 
-    function setRandom(): void {
-        Quickshell.execDetached(["caelestia", "wallpaper", "-r", ...smartArg]);
-    }
+    // Source the colour scheme/luminance reads from (video -> its poster frame)
+    readonly property string currentColourSource: currentIsVideo ? thumbFor(actualCurrent) : actualCurrent
 
     function setWallpaper(path: string): void {
         actualCurrent = path;
-        Quickshell.execDetached(["caelestia", "wallpaper", "-f", path, ...smartArg]);
+
+        if (Images.isVideoByName(path)) {
+            // Generate poster frame (lazily) + derive scheme from it; persist the *video* path.
+            const thumb = thumbFor(path);
+            Quickshell.execDetached(["bash", "-c", `mkdir -p '${thumbsDir}'; [ -f '${thumb}' ] || ffmpeg -y -i '${path}' -vframes 1 -q:v 2 '${thumb}'; caelestia wallpaper -f '${thumb}' ${smartArg.join(" ")}; echo -n '${path}' > '${currentNamePath}'`]);
+        } else {
+            Quickshell.execDetached(["caelestia", "wallpaper", "-f", path, ...smartArg]);
+        }
     }
 
     function preview(path: string): void {
@@ -48,14 +52,7 @@ Searcher {
 
     function stopPreview(): void {
         showPreview = false;
-        if (previewColourLock)
-            pendingPreviewClear = true;
-        else
-            Colours.showPreview = false;
-    }
-
-    onPreviewColourLockChanged: {
-        if (!previewColourLock && pendingPreviewClear)
+        if (!previewColourLock)
             Colours.showPreview = false;
     }
 
@@ -85,21 +82,13 @@ Searcher {
     FileView {
         path: root.currentNamePath
         watchChanges: true
-        printErrors: false
         onFileChanged: reload()
         onLoaded: {
-            let wall = text().trim();
-            if (!wall) {
-                wall = root.fallback;
-                Quickshell.execDetached(["caelestia", "wallpaper", "-f", root.fallback, ...root.smartArg]);
-            }
-            root.actualCurrent = wall;
+            const savedPath = text().trim();
+            if (!savedPath || savedPath.startsWith("/tmp/"))
+                return;
+            root.actualCurrent = savedPath;
             root.previewColourLock = false;
-        }
-        onLoadFailed: {
-            root.actualCurrent = root.fallback;
-            root.previewColourLock = false;
-            Quickshell.execDetached(["caelestia", "wallpaper", "-f", root.fallback, ...root.smartArg]);
         }
     }
 
@@ -108,13 +97,17 @@ Searcher {
 
         recursive: true
         path: Paths.wallsdir
-        filter: FileSystemModel.Images
+        filter: FileSystemModel.Files
+        nameFilters: ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.tif", "*.tiff", "*.gif", "*.mp4", "*.webm", "*.mkv"]
     }
+
+    // Native VideoOutput renders video now; clean up any leftover mpvpaper from the old approach.
+    Component.onCompleted: Quickshell.execDetached(["pkill", "mpvpaper"])
 
     Process {
         id: getPreviewColoursProc
 
-        command: ["caelestia", "wallpaper", "-p", root.previewPath, ...root.smartArg]
+        command: ["caelestia", "wallpaper", "-p", Images.isVideoByName(root.previewPath) ? root.thumbFor(root.previewPath) : root.previewPath, ...root.smartArg]
         stdout: StdioCollector {
             onStreamFinished: {
                 Colours.load(text, true);

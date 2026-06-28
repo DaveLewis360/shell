@@ -21,15 +21,15 @@ StyledRect {
         return i % Config.bar.workspaces.shown;
     }
 
-    property real leading: workspaces.count > 0 ? workspaces.itemAt(currentWsIdx)?.y ?? 0 : 0
-    property real trailing: workspaces.count > 0 ? workspaces.itemAt(currentWsIdx)?.y ?? 0 : 0
+    property real leading: workspaces.count > 0 ? workspaces.itemAt(currentWsIdx)?.x ?? 0 : 0
+    property real trailing: workspaces.count > 0 ? workspaces.itemAt(currentWsIdx)?.x ?? 0 : 0
     property real currentSize: workspaces.count > 0 ? (workspaces.itemAt(currentWsIdx) as Workspace)?.size ?? 0 : 0
     property real offset: Math.min(leading, trailing)
     property real size: {
         const s = Math.abs(leading - trailing) + currentSize;
         if (Config.bar.workspaces.activeTrail && lastWs > currentWsIdx) {
             const ws = workspaces.itemAt(lastWs) as Workspace;
-            return ws ? Math.min(ws.y + ws.size - offset, s) : 0;
+            return ws ? Math.min(ws.x + ws.size - offset, s) : 0;
         }
         return s;
     }
@@ -43,9 +43,9 @@ StyledRect {
     }
 
     clip: true
-    y: offset + mask.y
-    implicitWidth: Tokens.sizes.bar.innerWidth - Tokens.padding.small
-    implicitHeight: size
+    x: offset + mask.x
+    implicitWidth: size
+    implicitHeight: Tokens.sizes.bar.innerWidth - Tokens.padding.small
     radius: Tokens.rounding.full
     color: Colours.palette.m3primary
 
@@ -54,22 +54,22 @@ StyledRect {
         sourceColor: Colours.palette.m3onSurface
         colorizationColor: Colours.palette.m3onPrimary
 
-        x: 0
-        y: -parent.offset
+        x: -parent.offset
+        y: 0
         implicitWidth: root.mask.implicitWidth
         implicitHeight: root.mask.implicitHeight
 
-        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
     }
 
     Behavior on leading {
-        enabled: root.Config.bar.workspaces.activeTrail
+        enabled: Config.bar.workspaces.activeTrail
 
         EAnim {}
     }
 
     Behavior on trailing {
-        enabled: root.Config.bar.workspaces.activeTrail
+        enabled: Config.bar.workspaces.activeTrail
 
         EAnim {
             duration: Tokens.anim.durations.normal * 2
@@ -77,19 +77,19 @@ StyledRect {
     }
 
     Behavior on currentSize {
-        enabled: root.Config.bar.workspaces.activeTrail
+        enabled: Config.bar.workspaces.activeTrail
 
         EAnim {}
     }
 
     Behavior on offset {
-        enabled: !root.Config.bar.workspaces.activeTrail
+        enabled: !Config.bar.workspaces.activeTrail
 
         EAnim {}
     }
 
     Behavior on size {
-        enabled: !root.Config.bar.workspaces.activeTrail
+        enabled: !Config.bar.workspaces.activeTrail
 
         EAnim {}
     }
