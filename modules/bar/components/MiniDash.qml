@@ -202,7 +202,7 @@ Item {
                                     color: Colours.palette.m3onSurfaceVariant
                                     visible: image.status != Image.Ready
                                 }
-                                Image { id: image; anchors.fill: parent; source: (Players.active?.trackArtUrl || Players.lastArtUrl) ?? ""; fillMode: Image.PreserveAspectCrop }
+                                Image { id: image; anchors.fill: parent; source: Players.getArtUrl(Players.active) || Players.lastArtUrl; fillMode: Image.PreserveAspectCrop }
                             }
                         }
 

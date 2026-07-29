@@ -19,7 +19,7 @@ StyledClippingRect {
 
     FadeImage {
         anchors.fill: parent
-        source: Players.getArtUrl(Players.active)
+        source: Players.getArtUrl(Players.active) || Players.lastArtUrl
 
         asynchronous: true
         fillMode: Image.PreserveAspectCrop

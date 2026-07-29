@@ -15,6 +15,15 @@ Singleton {
     readonly property MprisPlayer active: props.manualActive ?? list.find(p => getIdentity(p) === GlobalConfig.services.defaultPlayer) ?? list[0] ?? null
     property alias manualActive: props.manualActive
 
+    property string lastArtUrl: ""
+
+    onActiveChanged: {
+        if (active) {
+            const url = getArtUrl(active);
+            if (url) lastArtUrl = url;
+        }
+    }
+
     function getIdentity(player: MprisPlayer): string {
         if (!player)
             return "";
@@ -44,6 +53,18 @@ Singleton {
             }
             if (root.active.trackArtist != "" && root.active.trackTitle != "") {
                 Toaster.toast(qsTr("Now Playing"), qsTr("%1 - %2").arg(root.active.trackArtist).arg(root.active.trackTitle), "music_note");
+            }
+            
+            if (root.active) {
+                const url = root.getArtUrl(root.active);
+                if (url) root.lastArtUrl = url;
+            }
+        }
+
+        function onTrackArtUrlChanged() {
+            if (root.active) {
+                const url = root.getArtUrl(root.active);
+                if (url) root.lastArtUrl = url;
             }
         }
 
