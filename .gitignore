@@ -4,3 +4,11 @@
 build/
 .cache/
 logs
+# --- Saját fork: fejlesztési szemét ne kerüljön be újra ---
+# Ezek csökkentik az upstream diff felületét, ami könnyíti a merge-t.
+/diff.patch
+/*.patch
+/fix_*.py
+/test_*.py
+/test_*.qml
+/scratch/
