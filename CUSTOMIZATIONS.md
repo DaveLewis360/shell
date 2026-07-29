@@ -120,8 +120,16 @@ Használd a helper scriptet — minden lépése visszavonható:
 ~/dotfiles/scripts/shell-sync-upstream --undo     # BEFEJEZETT merge visszavonása
 ```
 
-A script minden futás előtt `pre-merge/<időbélyeg>` tagot tesz a HEAD-re,
-így a merge mindig egy paranccsal visszavonható.
+A script minden futás előtt egy `pre-merge/<időbélyeg>` visszaállítási pontot
+hoz létre a `refs/backup/` névtérben, így a merge mindig egy paranccsal
+visszavonható.
+
+> **Miért nem tag?** A `CMakeLists.txt` a verziót a
+> `git describe --tags --abbrev=0`-ból veszi. Egy saját tag (pl. egy mentés)
+> elárnyékolná a `v2.x.y` verziótageket, és a build elhasalna
+> (`VERSION "restore-point/..." format invalid`). A `refs/backup/` refeket a
+> `git describe` nem látja, de a `git reset --hard refs/backup/...`,
+> a `git log` és a `git branch` teljesen működik velük.
 
 ### Ami segít a konfliktusoknál
 
@@ -145,5 +153,20 @@ jóval simábbak lennének. Jelenleg ez **nincs** megvalósítva.
 
 ## Elhagyott branchek
 
-Régi mentő-branchek `archive/` tagek alá kerültek (lásd `git tag -l 'archive/*'`).
+A régi mentő-branchek a `refs/backup/archive/` névtérbe kerültek — mind
+tartalmazott olyan commitokat, amik a `main`-ben nincsenek meg
+(a videó wallpaper javítások részletes története).
+
+```bash
+shell-sync-upstream --list                    # mindet listázza
+git branch <új-név> refs/backup/archive/<név> # visszahozás branchként
+```
+
+| Archív ref | Egyedi commitok | Mi ez |
+|---|---|---|
+| `archive/main-backup-with-fixes` | 11 | a videó wallpaper részletes javítási története |
+| `archive/my-backup-before-update` | 10 | a fork régi vonala (= az elavult `origin/main`) |
+| `archive/base-with-video-fix` | 1 | a videó támogatás átportolása frissebb upstreamre |
+| `archive/main-working-video-upstream` | 0 | régebbi pont ugyanezen a vonalon |
+
 A `main` az egyetlen élő fejlesztési vonal.
