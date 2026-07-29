@@ -35,6 +35,31 @@ StyledRect {
             }
         }
 
+        Loader {
+            asynchronous: true
+            anchors.verticalCenter: parent.verticalCenter
+            active: Config.bar.clock.showDate
+            visible: active
+
+            sourceComponent: Column {
+                spacing: -2
+
+                StyledText {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: Time.format("ddd")
+                    font: Tokens.font.body.builders.small.scale(0.8).build()
+                    color: root.colour
+                }
+
+                StyledText {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: Time.format("d")
+                    font: Tokens.font.body.builders.small.scale(1.1).build()
+                    color: root.colour
+                }
+            }
+        }
+
         StyledText {
             anchors.verticalCenter: parent.verticalCenter
 
