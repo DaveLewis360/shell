@@ -278,7 +278,7 @@ Item {
 
             function onLastIpcObjectChanged(): void {
                 if (ws.modelData)
-                    ws.hasWindows = Config.bar.workspaces.showWindowsOnSpecialWorkspaces && ws.modelData.lastIpcObject.windows > 0;
+                    ws.hasWindows = root.Config.bar.workspaces.showWindowsOnSpecialWorkspaces && ws.modelData.lastIpcObject.windows > 0;
             }
 
             target: ws.modelData
@@ -287,10 +287,10 @@ Item {
         Connections {
             function onShowWindowsOnSpecialWorkspacesChanged(): void {
                 if (ws.modelData)
-                    ws.hasWindows = Config.bar.workspaces.showWindowsOnSpecialWorkspaces && ws.modelData.lastIpcObject.windows > 0;
+                    ws.hasWindows = root.Config.bar.workspaces.showWindowsOnSpecialWorkspaces && ws.modelData.lastIpcObject.windows > 0;
             }
 
-            target: Config.bar.workspaces
+            target: root.Config.bar.workspaces
         }
 
         Loader {
@@ -360,7 +360,7 @@ Item {
                     model: ScriptModel {
                         values: {
                             const windows = Hypr.toplevels.values.filter(c => c.workspace?.id === ws.wsId);
-                            const maxIcons = Config.bar.workspaces.maxWindowIcons;
+                            const maxIcons = root.Config.bar.workspaces.maxWindowIcons;
                             return maxIcons > 0 ? windows.slice(0, maxIcons) : windows;
                         }
                     }
