@@ -1,5 +1,7 @@
 pragma ComponentBehavior: Bound
 
+import "../../modules/bar/components"
+import "../../modules/bar/components/workspaces"
 import QtQuick
 import QtQuick.Effects
 import QtQuick.Layouts
@@ -27,10 +29,10 @@ StyledClippingRect {
 
     property real blur: onSpecial ? 1 : 0
 
-    implicitWidth: Tokens.sizes.bar.innerWidth
-    implicitHeight: layout.implicitHeight + Tokens.padding.small
+    implicitHeight: Tokens.sizes.bar.innerWidth
+    implicitWidth: layout.implicitWidth + Tokens.padding.small
 
-    color: Colours.tPalette.m3surfaceContainer
+    color: "transparent"
     radius: Tokens.rounding.full
 
     Item {
@@ -53,14 +55,14 @@ StyledClippingRect {
             anchors.fill: parent
             anchors.margins: Tokens.padding.extraSmall
 
-            sourceComponent: OccupiedBg {
+            sourceComponent: HOccupiedBg {
                 workspaces: workspaces
                 occupied: root.occupied
                 groupOffset: root.groupOffset
             }
         }
 
-        ColumnLayout {
+        RowLayout {
             id: layout
 
             anchors.centerIn: parent
@@ -71,7 +73,7 @@ StyledClippingRect {
 
                 model: Config.bar.workspaces.shown
 
-                Workspace {
+                HWorkspace {
                     activeWsId: root.activeWsId
                     occupied: root.occupied
                     groupOffset: root.groupOffset
@@ -81,10 +83,10 @@ StyledClippingRect {
 
         Loader {
             asynchronous: true
-            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.verticalCenter: parent.verticalCenter
             active: Config.bar.workspaces.activeIndicator
 
-            sourceComponent: ActiveIndicator {
+            sourceComponent: HActiveIndicator {
                 activeWsId: root.activeWsId
                 workspaces: workspaces
                 mask: layout
@@ -95,7 +97,7 @@ StyledClippingRect {
         MouseArea {
             anchors.fill: layout
             onClicked: event => {
-                const ws = (layout.childAt(event.x, event.y) as Workspace)?.ws;
+                const ws = (layout.childAt(event.x, event.y) as HWorkspace)?.ws;
                 if (!ws)
                     return;
                 if (Hypr.activeWsId !== ws)
@@ -129,7 +131,7 @@ StyledClippingRect {
         scale: root.onSpecial ? 1 : 0.5
         opacity: root.onSpecial ? 1 : 0
 
-        sourceComponent: SpecialWorkspaces {
+        sourceComponent: HSpecialWorkspaces {
             screen: root.screen
         }
 

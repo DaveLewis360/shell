@@ -1,0 +1,62 @@
+{
+  "HBar.qml": {
+    "upstream_path": "modules/bar/Bar.qml",
+    "upstream_blob": "3a4d8588ae0223dcee7f0af98f5fc026ab0f9fb8",
+    "upstream_ref": "06b4fe07"
+  },
+  "HTray.qml": {
+    "upstream_path": "modules/bar/components/Tray.qml",
+    "upstream_blob": "db95b98da709074382abc34f628c236b5c846b3d",
+    "upstream_ref": "06b4fe07"
+  },
+  "HStatusIcons.qml": {
+    "upstream_path": "modules/bar/components/StatusIcons.qml",
+    "upstream_blob": "539a07f268c8700f035340ac32b446a8829855c2",
+    "upstream_ref": "06b4fe07"
+  },
+  "HClock.qml": {
+    "upstream_path": "modules/bar/components/Clock.qml",
+    "upstream_blob": "b5fcc0a4cf238aa40f2bd1631eb2434596cad1e5",
+    "upstream_ref": "06b4fe07"
+  },
+  "HActiveWindow.qml": {
+    "upstream_path": "modules/bar/components/ActiveWindow.qml",
+    "upstream_blob": "cf1f4b9831a36ab6bb1268911acffedfd1debf83",
+    "upstream_ref": "06b4fe07"
+  },
+  "HPower.qml": {
+    "upstream_path": "modules/bar/components/Power.qml",
+    "upstream_blob": "0740e14bb3f35664ced08e7c3f0cfce3d148542f",
+    "upstream_ref": "06b4fe07"
+  },
+  "HWorkspaces.qml": {
+    "upstream_path": "modules/bar/components/workspaces/Workspaces.qml",
+    "upstream_blob": "75cd54d60e4a9d5698726c47d10bf2161b91b7be",
+    "upstream_ref": "06b4fe07"
+  },
+  "HWorkspace.qml": {
+    "upstream_path": "modules/bar/components/workspaces/Workspace.qml",
+    "upstream_blob": "a7d0dada2aa5c7b2b03dc74434231ffc48bef725",
+    "upstream_ref": "06b4fe07"
+  },
+  "HActiveIndicator.qml": {
+    "upstream_path": "modules/bar/components/workspaces/ActiveIndicator.qml",
+    "upstream_blob": "ad27949880a1ab909624891a866cdc78d15538a0",
+    "upstream_ref": "06b4fe07"
+  },
+  "HOccupiedBg.qml": {
+    "upstream_path": "modules/bar/components/workspaces/OccupiedBg.qml",
+    "upstream_blob": "d971940a940decbb7d41703cbebf2954f3122c2f",
+    "upstream_ref": "06b4fe07"
+  },
+  "HSpecialWorkspaces.qml": {
+    "upstream_path": "modules/bar/components/workspaces/SpecialWorkspaces.qml",
+    "upstream_blob": "6937fb814e9638dbdedbe2e60b4bda1dbb425fee",
+    "upstream_ref": "06b4fe07"
+  },
+  "HClipWrapper.qml": {
+    "upstream_path": "modules/bar/popouts/ClipWrapper.qml",
+    "upstream_blob": "997852197cdfeb3e79d3b10c5311ec75dd047c98",
+    "upstream_ref": "06b4fe07"
+  }
+}

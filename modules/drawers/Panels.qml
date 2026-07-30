@@ -36,7 +36,9 @@ Item {
 
     anchors.fill: parent
     anchors.margins: borderThickness
-    anchors.topMargin: bar.implicitHeight
+    // [fork] orientációfüggő behúzás a bar felé
+    anchors.leftMargin: bar.horizontal ? borderThickness : bar.implicitWidth
+    anchors.topMargin: bar.horizontal ? bar.implicitHeight : borderThickness
 
     Item {
         id: osdWrapper

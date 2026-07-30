@@ -88,16 +88,16 @@ StyledWindow {
     Region {
         id: emptyRegion
 
-        x: panels.notifications.x + root.borderThickness
-        y: panels.notifications.y + bar.implicitHeight
+        x: panels.notifications.x + (bar.horizontal ? root.borderThickness : bar.implicitWidth)
+        y: panels.notifications.y + (bar.horizontal ? bar.implicitHeight : root.borderThickness)
         width: panels.notifications.width
         height: panels.notifications.height
 
         Region {
-            x: panels.osdWrapper.x + root.borderThickness
-            y: root.height - height
-            width: panels.osd.width
-            height: panels.osdWrapper.height * (1 - panels.osd.offsetScale) + root.borderThickness
+            x: bar.horizontal ? panels.osdWrapper.x + root.borderThickness : root.width - width
+            y: bar.horizontal ? root.height - height : panels.osdWrapper.y + root.borderThickness
+            width: bar.horizontal ? panels.osd.width : panels.osdWrapper.width * (1 - panels.osd.offsetScale) + root.borderThickness
+            height: bar.horizontal ? panels.osdWrapper.height * (1 - panels.osd.offsetScale) + root.borderThickness : panels.osd.height
         }
     }
 
@@ -169,7 +169,7 @@ StyledWindow {
             anchors.margins: -50 // Make border thicker to smooth out bulge from closed drawers
             group: blobGroup
             radius: root.borderRounding
-            borderLeft: root.borderThickness - anchors.margins - root.sdfBorderOffset
+            borderLeft: (bar.horizontal ? root.borderThickness : bar.implicitWidth) - anchors.margins - root.sdfBorderOffset
             borderRight: root.borderThickness - anchors.margins - root.sdfBorderOffset
             borderTop: root.borderThickness - anchors.margins - root.sdfBorderOffset
             borderBottom: root.borderThickness - anchors.margins - root.sdfBorderOffset
@@ -222,17 +222,18 @@ StyledWindow {
 
         Rectangle {
             id: workspacesBg
+            visible: bar.horizontal && bar.workspacesWidth > 0
             x: bar.workspacesX
             y: bar.y + (bar.implicitHeight - implicitHeight) / 2
             implicitWidth: bar.workspacesWidth
             implicitHeight: Tokens.sizes.bar.innerWidth
             radius: Tokens.rounding.full
             color: Qt.alpha(root.surfaceColour, 1)
-            visible: bar.workspacesWidth > 0
         }
 
         Rectangle {
             id: barBg
+            visible: bar.horizontal
             x: bar.rightPartX
             y: bar.y
             implicitWidth: bar.width - bar.rightPartX
@@ -267,9 +268,14 @@ StyledWindow {
         BarWrapper {
             id: bar
 
+            // [fork] vízszintes: felső él, teljes szélesség
+            //        vertikális: bal él, teljes magasság (upstream)
+            // Feltételes anchor helyett explicit méret — az `undefined` anchor
+            // nem törli a kötést, attól feszült volna mindkét élre.
             anchors.top: parent.top
             anchors.left: parent.left
-            anchors.right: parent.right
+            width: bar.horizontal ? parent.width : bar.implicitWidth
+            height: bar.horizontal ? bar.implicitHeight : parent.height
 
             screen: root.screen
             screenState: root.screenState
@@ -309,8 +315,8 @@ StyledWindow {
         property real deformAmount: 0.15
 
         color: Qt.alpha(root.surfaceColour, 1)
-        x: panel.x + root.borderThickness
-        y: panel.y + bar.implicitHeight
+        x: panel.x + (bar.horizontal ? root.borderThickness : bar.implicitWidth)
+        y: panel.y + (bar.horizontal ? bar.implicitHeight : root.borderThickness)
         implicitWidth: panel.width
         implicitHeight: panel.height
         radius: Tokens.rounding.extraLarge

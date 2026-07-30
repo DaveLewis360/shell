@@ -12,13 +12,16 @@ Scope {
     required property ShellScreen screen
     required property Bar.BarWrapper bar
 
+    // [fork] A bar helyfoglalása orientációtól függ: vertikálisnál a bal,
+    // vízszintesnél a felső él tartja fenn a helyet.
     ExclusionZone {
         anchors.left: true
+        exclusiveZone: root.bar.horizontal ? contentItem.Config.border.thickness : root.bar.exclusiveZone
     }
 
     ExclusionZone {
         anchors.top: true
-        exclusiveZone: root.bar.exclusiveZone
+        exclusiveZone: root.bar.horizontal ? root.bar.exclusiveZone : contentItem.Config.border.thickness
     }
 
     ExclusionZone {

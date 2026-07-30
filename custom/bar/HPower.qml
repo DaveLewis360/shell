@@ -1,3 +1,5 @@
+import "../../modules/bar/components"
+import "../../modules/bar/components/workspaces"
 import QtQuick
 import Caelestia.Config
 import qs.components
@@ -8,15 +10,15 @@ Item {
 
     required property ScreenState screenState
 
-    implicitWidth: icon.implicitHeight + Tokens.padding.small
-    implicitHeight: icon.implicitHeight
+    implicitHeight: icon.implicitHeight + Tokens.padding.small
+    implicitWidth: icon.implicitWidth
 
     StateLayer {
         // Cursed workaround to make the height larger than the parent
         anchors.fill: undefined
         anchors.centerIn: parent
-        implicitWidth: implicitHeight
-        implicitHeight: icon.implicitHeight + Tokens.padding.small
+        implicitHeight: implicitWidth
+        implicitWidth: icon.implicitWidth + Tokens.padding.small
         radius: Tokens.rounding.full
         onClicked: root.screenState.session = !root.screenState.session
     }

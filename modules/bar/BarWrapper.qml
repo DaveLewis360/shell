@@ -6,6 +6,8 @@ import Caelestia.Config
 import qs.components
 import qs.utils
 import qs.modules.bar.popouts as BarPopouts
+import qs.custom
+import qs.custom.bar
 
 Item {
     id: root
@@ -15,42 +17,58 @@ Item {
     required property BarPopouts.Wrapper popouts
     required property bool fullscreen
 
+    // [fork] EZ AZ EGYETLEN VÁLTÓ a vertikális (upstream, bal szél) és a
+    // vízszintes (fork, felső szél) bar között.
+    // Forrás: ~/.config/caelestia/extras.json → { "bar": { "horizontal": true } }
+    readonly property bool horizontal: ExtrasConfig.horizontalBar
+
     readonly property bool disabled: Strings.testRegexList(Config.bar.excludedScreens, screen.name)
 
-    readonly property int clampedHeight: Math.max(Config.border.minThickness, implicitHeight)
+    readonly property int clampedWidth: Math.max(Config.border.minThickness, implicitWidth)
     readonly property int padding: Math.max(Tokens.padding.small, Config.border.thickness)
-    readonly property int contentHeight: Tokens.sizes.bar.innerWidth + padding * 2 // [fork] vízszintes bar
-    readonly property int exclusiveZone: !disabled && (Config.bar.persistent || screenState.bar) ? contentHeight : Config.border.thickness
+    readonly property int contentWidth: Tokens.sizes.bar.innerWidth + padding * 2
+    readonly property int exclusiveZone: !disabled && (Config.bar.persistent || screenState.bar) ? contentWidth : Config.border.thickness
     readonly property bool shouldBeVisible: !fullscreen && !disabled && (Config.bar.persistent || screenState.bar || isHovered)
     property bool isHovered
 
-    readonly property real rightPartX: (content.item as Bar)?.rightPartX ?? (width / 2)
-    readonly property real workspacesX: (content.item as Bar)?.workspacesX ?? 0
-    readonly property real workspacesWidth: (content.item as Bar)?.workspacesWidth ?? 0
-    readonly property int hPadding: (content.item as Bar)?.hPadding ?? padding
+    // [fork] A vízszintes mód párjai. A contentWidth-et a bar "vastagságaként"
+    // használjuk mindkét irányban, csak más tengelyen.
+    readonly property int clampedHeight: Math.max(Config.border.minThickness, implicitHeight)
 
+    // [fork] Csak a vízszintes bar szolgáltatja (a MiniDash pozicionálásához)
+    readonly property real rightPartX: (content.item as HBar)?.rightPartX ?? (width / 2)
+    readonly property real workspacesX: (content.item as HBar)?.workspacesX ?? 0
+    readonly property real workspacesWidth: (content.item as HBar)?.workspacesWidth ?? 0
+    readonly property int hPadding: (content.item as HBar)?.hPadding ?? padding
+
+    // Mindkét változat ugyanezt a három függvényt kínálja. A hívó dönti el, hogy
+    // x-et vagy y-t ad át (vízszintesnél x, vertikálisnál y).
     function closeTray(): void {
-        (content.item as Bar)?.closeTray();
+        content.item?.closeTray();
     }
 
-    function checkPopout(x: real): void {
-        (content.item as Bar)?.checkPopout(x);
+    function checkPopout(coord: real): void {
+        content.item?.checkPopout(coord);
     }
 
-    function handleWheel(x: real, angleDelta: point): void {
-        (content.item as Bar)?.handleWheel(x, angleDelta);
+    function handleWheel(coord: real, angleDelta: point): void {
+        content.item?.handleWheel(coord, angleDelta);
     }
 
     clip: true
-    visible: height >= (fullscreen ? 0 : Config.border.thickness)
-    implicitHeight: fullscreen ? 0 : Config.border.thickness
+
+    visible: horizontal ? height > Config.border.thickness : width > Config.border.thickness
+
+    implicitWidth: horizontal ? 0 : (fullscreen ? 0 : Config.border.thickness)
+    implicitHeight: horizontal ? (fullscreen ? 0 : Config.border.thickness) : 0
 
     states: State {
         name: "visible"
         when: root.shouldBeVisible
 
         PropertyChanges {
-            root.implicitHeight: root.contentHeight
+            root.implicitWidth: root.horizontal ? 0 : root.contentWidth
+            root.implicitHeight: root.horizontal ? root.contentWidth : 0
         }
     }
 
@@ -61,7 +79,7 @@ Item {
 
             Anim {
                 target: root
-                property: "implicitHeight"
+                property: root.horizontal ? "implicitHeight" : "implicitWidth"
             }
         },
         Transition {
@@ -70,23 +88,48 @@ Item {
 
             Anim {
                 target: root
-                property: "implicitHeight"
+                property: root.horizontal ? "implicitHeight" : "implicitWidth"
                 type: Anim.Emphasized
             }
         }
     ]
 
+    // FONTOS: itt NEM használunk feltételes anchort. A QML-ben az
+    // `anchors.x: cond ? parent.y : undefined` NEM törli az anchort, ezért a
+    // wrapper mindkét élre felfeszülne. Explicit x/y/width/height helyette.
+    //
+    // A bar a wrapper "belső" éléhez tapad, hogy előbújáskor becsúszzon:
+    // vertikálisnál a jobb szélhez (upstream), vízszintesnél az alsóhoz.
     Loader {
         id: content
 
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
+        width: root.horizontal ? root.width : root.contentWidth
+        height: root.horizontal ? root.contentWidth : root.height
+        x: root.horizontal ? 0 : root.width - width
+        y: root.horizontal ? root.height - height : 0
 
-        active: root.shouldBeVisible || root.visible
+        active: root.shouldBeVisible
 
-        sourceComponent: Bar {
-            height: root.contentHeight
+        sourceComponent: root.horizontal ? horizontalBar : verticalBar
+    }
+
+    // [fork] A fork vízszintes barja (custom/bar/HBar.qml)
+    Component {
+        id: horizontalBar
+
+        HBar {
+            screen: root.screen
+            screenState: root.screenState
+            popouts: root.popouts // qmllint disable incompatible-type
+            fullscreen: root.fullscreen
+        }
+    }
+
+    // Az ÉRINTETLEN upstream vertikális bar (modules/bar/Bar.qml)
+    Component {
+        id: verticalBar
+
+        Bar {
             screen: root.screen
             screenState: root.screenState
             popouts: root.popouts // qmllint disable incompatible-type

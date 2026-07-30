@@ -22,31 +22,38 @@ CustomMouseArea {
     property bool dashboardShortcutActive
     property bool osdShortcutActive
     property bool utilitiesShortcutActive
-    
+
     property real lastX: 0
     property real lastY: 0
 
+    // [fork] A bar behúzása tengelyenként — vertikálisnál balról, vízszintesnél felülről
+    readonly property real barLeftInset: bar.horizontal ? borderThickness : bar.implicitWidth
+    readonly property real barTopInset: bar.horizontal ? bar.implicitHeight : borderThickness
+
     function withinPanelHeight(panel: Item, x: real, y: real): bool {
-        const panelY = bar.implicitHeight + panel.y;
+        const panelY = root.barTopInset + panel.y;
         return y >= panelY - Config.border.rounding && y <= panelY + panel.height + Config.border.rounding;
     }
 
     function withinPanelWidth(panel: Item, x: real, y: real): bool {
-        const panelX = root.borderThickness + panel.x;
+        const panelX = root.barLeftInset + panel.x;
         return x >= panelX - Config.border.rounding && x <= panelX + panel.width + Config.border.rounding;
     }
 
+    // [fork] A bar melletti popout-sáv: vízszintesnél a felső, vertikálisnál a bal.
     function inTopBarArea(panel: Item, x: real, y: real): bool {
-        return y < bar.implicitHeight + panel.y + panel.height && withinPanelWidth(panel, x, y);
+        if (bar.horizontal)
+            return y < bar.implicitHeight + panel.y + panel.height && withinPanelWidth(panel, x, y);
+        return x < bar.implicitWidth + panel.x + panel.width && withinPanelHeight(panel, x, y);
     }
 
     function inRightPanel(panel: Item, x: real, y: real): bool {
-        return x > Math.min(width - Config.border.minThickness, root.borderThickness + panel.x) && withinPanelHeight(panel, x, y);
+        return x > Math.min(width - Config.border.minThickness, root.barLeftInset + panel.x) && withinPanelHeight(panel, x, y);
     }
 
     function inTopPanel(panel: Item, x: real, y: real): bool {
         const panelHeight = panel.height * (1 - (panel.offsetScale ?? 0)); // qmllint disable missing-property
-        return y < Math.max(Config.border.minThickness, bar.implicitHeight + panelHeight) && withinPanelWidth(panel, x, y);
+        return y < Math.max(Config.border.minThickness, root.barTopInset + panelHeight) && withinPanelWidth(panel, x, y);
     }
 
     function inBottomPanel(panel: Item, x: real, y: real, isCorner = false): bool {
@@ -57,8 +64,8 @@ CustomMouseArea {
     function onWheel(event: WheelEvent): void {
         if (fullscreen)
             return;
-        if (event.y < bar.implicitHeight) {
-            bar.handleWheel(event.x, event.angleDelta);
+        if (bar.horizontal ? event.y < bar.implicitHeight : event.x < bar.implicitWidth) {
+            bar.handleWheel(bar.horizontal ? event.x : event.y, event.angleDelta);
         }
     }
 
@@ -111,14 +118,15 @@ CustomMouseArea {
         }
 
         // Show bar in non-exclusive mode on hover
-        if (!screenState.bar && Config.bar.showOnHover && y < bar.clampedHeight) // [fork] vízszintes bar
+        if (!screenState.bar && Config.bar.showOnHover && (bar.horizontal ? y < bar.clampedHeight : x < bar.clampedWidth))
             bar.isHovered = true;
 
         // Show/hide bar on drag
-        if (pressed && dragStart.y < bar.clampedHeight) { // [fork] vízszintes bar
-            if (dragY > Config.bar.dragThreshold)
+        if (pressed && (bar.horizontal ? dragStart.y < bar.clampedHeight : dragStart.x < bar.clampedWidth)) {
+            const barDrag = bar.horizontal ? dragY : dragX;
+            if (barDrag > Config.bar.dragThreshold)
                 screenState.bar = true;
-            else if (dragY < -Config.bar.dragThreshold)
+            else if (barDrag < -Config.bar.dragThreshold)
                 screenState.bar = false;
         }
 
@@ -136,13 +144,13 @@ CustomMouseArea {
                 root.panels.osd.hovered = true;
             }
 
-            const showSidebar = pressed && dragStart.x > Math.min(width - Config.border.minThickness, root.borderThickness + panels.sidebar.x);
+            const showSidebar = pressed && dragStart.x > Math.min(width - Config.border.minThickness, root.barLeftInset + panels.sidebar.x);
 
             // Show sidebar on hover (top-right corner, bounded by notification panel height)
             if (Config.sidebar.showOnHover) {
                 // [fork] a trigger a vízszintes bar magasságát veszi figyelembe
-                const sidebarTriggerY = Math.max(Config.sidebar.minHoverThreshold, panels.notifications.y + panels.notifications.height + bar.implicitHeight);
-                const showSidebarHover = x > Math.min(width - Config.border.minThickness, root.borderThickness + panels.sidebar.x) && y <= sidebarTriggerY;
+                const sidebarTriggerY = Math.max(Config.sidebar.minHoverThreshold, panels.notifications.y + panels.notifications.height + root.barTopInset);
+                const showSidebarHover = x > Math.min(width - Config.border.minThickness, root.barLeftInset + panels.sidebar.x) && y <= sidebarTriggerY;
                 if (showSidebarHover && !screenState.sidebar)
                     screenState.sidebar = true;
             }
@@ -187,8 +195,8 @@ CustomMouseArea {
             // Show/hide sidebar on hover
             if (Config.sidebar.showOnHover && !pressed) {
                 // [fork] a trigger a vízszintes bar magasságát veszi figyelembe
-                const sidebarTriggerY = Math.max(Config.sidebar.minHoverThreshold, panels.notifications.y + panels.notifications.height + bar.implicitHeight);
-                const showSidebarHover = x > Math.min(width - Config.border.minThickness, root.borderThickness + panels.sidebar.x) && y <= sidebarTriggerY;
+                const sidebarTriggerY = Math.max(Config.sidebar.minHoverThreshold, panels.notifications.y + panels.notifications.height + root.barTopInset);
+                const showSidebarHover = x > Math.min(width - Config.border.minThickness, root.barLeftInset + panels.sidebar.x) && y <= sidebarTriggerY;
                 if (showSidebarHover && !screenState.sidebar) {
                     screenState.sidebar = true;
                 } else {
@@ -216,9 +224,10 @@ CustomMouseArea {
 
         // [fork] Dashboard hover: zárt állapotban csak a képernyő legfelső élén
         // nyílik, hogy ne takarja el a MiniDash-t.
-        const dashboardTriggerY = 5;
-        const isHoveringDashboardTrigger = y <= dashboardTriggerY && withinPanelWidth(panels.dashboard, x, y);
-        const showDashboard = Config.dashboard.showOnHover && (root.screenState.dashboard ? inTopPanel(panels.dashboard, x, y) : isHoveringDashboardTrigger);
+        // Vízszintes módban zárt állapotban csak a képernyő legfelső élén nyílik,
+        // hogy ne takarja el a MiniDash-t. Vertikálisnál az upstream logika.
+        const isHoveringDashboardTrigger = y <= 5 && withinPanelWidth(panels.dashboard, x, y);
+        const showDashboard = Config.dashboard.showOnHover && (!bar.horizontal || root.screenState.dashboard ? inTopPanel(panels.dashboard, x, y) : isHoveringDashboardTrigger);
 
         // Always update visibility based on hover if not in shortcut mode
         if (!dashboardShortcutActive) {
@@ -248,8 +257,8 @@ CustomMouseArea {
         }
 
         // Show popouts on hover
-        if (y < bar.implicitHeight) {
-            bar.checkPopout(x);
+        if (bar.horizontal ? y < bar.implicitHeight : x < bar.implicitWidth) {
+            bar.checkPopout(bar.horizontal ? x : y);
         } else if ((!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) && !inTopBarArea(panels.popoutsWrapper, x, y)) {
             popouts.hasCurrent = false;
             bar.closeTray();
@@ -268,10 +277,10 @@ CustomMouseArea {
                 // Also hide dashboard and OSD if they're not being hovered
                 const inDashboardArea = root.inTopPanel(root.panels.dashboard, root.lastX, root.lastY);
                 const inOsdArea = root.inRightPanel(root.panels.osdWrapper, root.lastX, root.lastY);
-                
+
 
                 if (!inDashboardArea) {
-                        root.screenState.dashboard = false;
+                    root.screenState.dashboard = false;
                 }
                 if (!inOsdArea) {
                     root.screenState.osd = false;

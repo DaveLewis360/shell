@@ -15,15 +15,16 @@ Region {
     readonly property real borderThickness: win.contentItem.Config.border.thickness
     readonly property real clampedThickness: win.contentItem.Config.border.clampedThickness
 
-    x: clampedThickness + win.dragMaskPadding
-    y: bar.clampedHeight + win.dragMaskPadding
-    width: win.width - clampedThickness * 2 - win.dragMaskPadding * 2
-    height: win.height - bar.clampedHeight - clampedThickness - win.dragMaskPadding * 2
+    // [fork] orientációfüggő: a bar vagy a bal, vagy a felső élt foglalja
+    x: (bar.horizontal ? clampedThickness : bar.clampedWidth) + win.dragMaskPadding
+    y: (bar.horizontal ? bar.clampedHeight : clampedThickness) + win.dragMaskPadding
+    width: win.width - (bar.horizontal ? clampedThickness * 2 : bar.clampedWidth + clampedThickness) - win.dragMaskPadding * 2
+    height: win.height - (bar.horizontal ? bar.clampedHeight + clampedThickness : clampedThickness * 2) - win.dragMaskPadding * 2
     intersection: Intersection.Xor
 
     R {
         panel: root.panels.dashboard
-        y: root.bar.implicitHeight
+        y: root.bar.horizontal ? root.bar.implicitHeight : 0
         height: panel.height * (1 - root.panels.dashboard.offsetScale) + root.borderThickness
     }
 
@@ -75,8 +76,8 @@ Region {
     component R: Region {
         required property Item panel
 
-        x: panel.x + root.borderThickness
-        y: panel.y + root.bar.implicitHeight
+        x: panel.x + (root.bar.horizontal ? root.borderThickness : root.bar.implicitWidth)
+        y: panel.y + (root.bar.horizontal ? root.bar.implicitHeight : root.borderThickness)
         width: panel.width
         height: panel.height
         intersection: Intersection.Subtract
