@@ -8,6 +8,7 @@ import QtQuick.Layouts
 import Quickshell
 import Caelestia.Config
 import qs.components
+import qs.custom
 import qs.services
 
 Item {
