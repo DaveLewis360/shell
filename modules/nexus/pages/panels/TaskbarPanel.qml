@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick.Layouts
 import Caelestia.Config
 import qs.modules.nexus.common
+import qs.custom
 
 PageBase {
     id: root
@@ -16,9 +17,23 @@ PageBase {
         width: root.cappedWidth
         spacing: Tokens.spacing.extraSmall / 2
 
-        // Behaviour
+        // Layout — [fork] a vízszintes bar váltója
         SectionHeader {
             first: true
+            text: qsTr("Layout")
+        }
+
+        ToggleRow {
+            first: true
+            last: true
+            text: qsTr("Horizontal bar")
+            subtext: qsTr("Place the bar along the top edge instead of the left")
+            checked: ExtrasConfig.horizontalBar
+            onToggled: ExtrasConfig.setValue("bar", "horizontal", checked)
+        }
+
+        // Behaviour
+        SectionHeader {
             text: qsTr("Behaviour")
         }
 
