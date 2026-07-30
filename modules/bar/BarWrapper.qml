@@ -11,7 +11,7 @@ Item {
     id: root
 
     required property ShellScreen screen
-    required property DrawerVisibilities visibilities
+    required property ScreenState screenState
     required property BarPopouts.Wrapper popouts
     required property bool fullscreen
 
@@ -19,9 +19,9 @@ Item {
 
     readonly property int clampedHeight: Math.max(Config.border.minThickness, implicitHeight)
     readonly property int padding: Math.max(Tokens.padding.small, Config.border.thickness)
-    readonly property int contentHeight: Tokens.sizes.bar.innerWidth + padding * 2
-    readonly property int exclusiveZone: !disabled && (Config.bar.persistent || visibilities.bar) ? contentHeight : Config.border.thickness
-    readonly property bool shouldBeVisible: !fullscreen && !disabled && (Config.bar.persistent || visibilities.bar || isHovered)
+    readonly property int contentHeight: Tokens.sizes.bar.innerWidth + padding * 2 // [fork] vízszintes bar
+    readonly property int exclusiveZone: !disabled && (Config.bar.persistent || screenState.bar) ? contentHeight : Config.border.thickness
+    readonly property bool shouldBeVisible: !fullscreen && !disabled && (Config.bar.persistent || screenState.bar || isHovered)
     property bool isHovered
 
     readonly property real rightPartX: (content.item as Bar)?.rightPartX ?? (width / 2)
@@ -88,7 +88,7 @@ Item {
         sourceComponent: Bar {
             height: root.contentHeight
             screen: root.screen
-            visibilities: root.visibilities
+            screenState: root.screenState
             popouts: root.popouts // qmllint disable incompatible-type
             fullscreen: root.fullscreen
         }

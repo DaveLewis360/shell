@@ -15,14 +15,12 @@ Singleton {
     readonly property MprisPlayer active: props.manualActive ?? list.find(p => getIdentity(p) === GlobalConfig.services.defaultPlayer) ?? list[0] ?? null
     property alias manualActive: props.manualActive
 
+    // [fork] Az utolsó érvényes borítókép URL — a fogyasztók erre esnek vissza,
+    // ha az aktuális player épp nem ad URL-t (így nem villog el a borító).
     property string lastArtUrl: ""
 
-    onActiveChanged: {
-        if (active) {
-            const url = getArtUrl(active);
-            if (url) lastArtUrl = url;
-        }
-    }
+    // Dedup key for progressive metadata (e.g. mpv-mpris/yt-dlp player fills title then artist later).
+    property string lastNowPlayingKey: ""
 
     function getIdentity(player: MprisPlayer): string {
         if (!player)
@@ -46,26 +44,65 @@ Singleton {
         return "";
     }
 
+    // [fork] Eltárolja az aktuális borítókép URL-t, ha van érvényes. Üres URL-nél
+    // szándékosan nem nulláz, így a fogyasztók a legutóbbi érvényes képet mutatják.
+    function updateLastArtUrl(): void {
+        if (!root.active)
+            return;
+        const url = root.getArtUrl(root.active);
+        if (url)
+            root.lastArtUrl = url;
+    }
+
+    // Quickshell only emits postTrackChanged when trackid/url/title change, so late
+    // artist updates (common with mpv-mpris + yt-dlp player) never retrigger it. Watch
+    // title/artist too and toast once both are usable.
+    function maybeToastNowPlaying(): void {
+        if (!GlobalConfig.utilities.toasts.nowPlaying)
+            return;
+
+        const player = root.active;
+        if (!player)
+            return;
+
+        const title = player.trackTitle ?? "";
+        const artist = player.trackArtist ?? "";
+        if (!title || !artist)
+            return;
+
+        const key = `${getIdentity(player)}\0${player.uniqueId}\0${title}\0${artist}`;
+        if (key === lastNowPlayingKey)
+            return;
+
+        lastNowPlayingKey = key;
+        Toaster.toast(qsTr("Now Playing"), qsTr("%1 - %2").arg(artist).arg(title), "music_note");
+    }
+
+    // [fork] Az upstream itt csak a dedup-kulcsot nullázza; nekünk a borítót is
+    // el kell tárolnunk, hogy playerváltásnál ne villogjon el.
+    onActiveChanged: {
+        lastNowPlayingKey = "";
+        updateLastArtUrl();
+    }
+
     Connections {
-        function onPostTrackChanged() {
-            if (!GlobalConfig.utilities.toasts.nowPlaying) {
-                return;
-            }
-            if (root.active.trackArtist != "" && root.active.trackTitle != "") {
-                Toaster.toast(qsTr("Now Playing"), qsTr("%1 - %2").arg(root.active.trackArtist).arg(root.active.trackTitle), "music_note");
-            }
-            
-            if (root.active) {
-                const url = root.getArtUrl(root.active);
-                if (url) root.lastArtUrl = url;
-            }
+        function onPostTrackChanged(): void {
+            root.maybeToastNowPlaying();
+            root.updateLastArtUrl(); // [fork]
         }
 
-        function onTrackArtUrlChanged() {
-            if (root.active) {
-                const url = root.getArtUrl(root.active);
-                if (url) root.lastArtUrl = url;
-            }
+        function onTrackTitleChanged(): void {
+            root.maybeToastNowPlaying();
+        }
+
+        function onTrackArtistChanged(): void {
+            root.maybeToastNowPlaying();
+        }
+
+        // [fork] A borítókép URL-je a track többi metaadatától függetlenül is
+        // változhat, ezért külön figyeljük.
+        function onTrackArtUrlChanged(): void {
+            root.updateLastArtUrl();
         }
 
         target: root.active

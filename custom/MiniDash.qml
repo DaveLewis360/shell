@@ -17,7 +17,7 @@ Item {
     id: root
     objectName: "miniDash"
 
-    required property DrawerVisibilities visibilities
+    required property ScreenState screenState
 
     readonly property bool hasMedia: !!Players.active && Players.active.trackTitle.length > 0
     readonly property bool isPlaying: Players.active?.isPlaying ?? false
@@ -214,9 +214,9 @@ Item {
 
                         Row {
                             spacing: 4; Layout.alignment: Qt.AlignVCenter
-                            ControlBtn { icon: "skip_previous"; onClicked: Players.active?.previous(); enabled: (Players.active?.canGoPrevious ?? false) && !root.visibilities.dashboard }
-                            ControlBtn { icon: root.isPlaying ? "pause" : "play_arrow"; onClicked: Players.active?.togglePlaying(); enabled: (Players.active?.canTogglePlaying ?? false) && !root.visibilities.dashboard }
-                            ControlBtn { icon: "skip_next"; onClicked: Players.active?.next(); enabled: (Players.active?.canGoNext ?? false) && !root.visibilities.dashboard }
+                            ControlBtn { icon: "skip_previous"; onClicked: Players.active?.previous(); enabled: (Players.active?.canGoPrevious ?? false) && !root.screenState.dashboard }
+                            ControlBtn { icon: root.isPlaying ? "pause" : "play_arrow"; onClicked: Players.active?.togglePlaying(); enabled: (Players.active?.canTogglePlaying ?? false) && !root.screenState.dashboard }
+                            ControlBtn { icon: "skip_next"; onClicked: Players.active?.next(); enabled: (Players.active?.canGoNext ?? false) && !root.screenState.dashboard }
                         }
                     }
                 }
@@ -233,7 +233,7 @@ Item {
     }
 
     // Fixed animations for open/close
-    readonly property bool dashOpen: root.visibilities.dashboard
+    readonly property bool dashOpen: root.screenState.dashboard
     enabled: !dashOpen
     opacity: dashOpen ? 0 : 1
     scale: dashOpen ? 0.85 : 1

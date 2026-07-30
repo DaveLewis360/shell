@@ -6,7 +6,7 @@ import qs.services
 Item {
     id: root
 
-    required property DrawerVisibilities visibilities
+    required property ScreenState screenState
 
     implicitHeight: icon.implicitHeight + Tokens.padding.small
     implicitWidth: icon.implicitWidth
@@ -18,7 +18,7 @@ Item {
         implicitHeight: implicitWidth
         implicitWidth: icon.implicitWidth + Tokens.padding.small
         radius: Tokens.rounding.full
-        onClicked: root.visibilities.session = !root.visibilities.session
+        onClicked: root.screenState.session = !root.screenState.session
     }
 
     MaterialIcon {

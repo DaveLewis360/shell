@@ -11,24 +11,29 @@ import qs.components
 import qs.custom
 import qs.services
 
+// [fork] Az upstream root-ja közvetlenül egy ColumnLayout. Nálunk Item, amiben
+// a RowLayout ül — így a MiniDash a bar mellé, a képernyő tetejére horgonyozható.
 Item {
     id: root
 
     required property ShellScreen screen
-    required property DrawerVisibilities visibilities
+    required property ScreenState screenState
     required property BarPopouts.Wrapper popouts
     required property bool fullscreen
+
+    // [fork] upstream: vPadding (a bar függőleges, ott a padding fent/lent van)
     readonly property int hPadding: Tokens.padding.large
 
-
+    // [fork] A MiniDash pozicionálásához kell tudni, hol végződik a bal oldali
+    // rész (az első fillWidth elem után), és hol van a workspaces blokk.
     property real rightPartX: {
-        let xVal = width; // Default to right edge if no fillWidth item found
+        let xVal = width; // ha nincs fillWidth elem, a jobb szél
         for (let i = repeater.count - 1; i >= 0; i--) {
-            const loader = repeater.itemAt(i) as WrappedLoader;
-            if (loader && loader.enabled && loader.modelData) {
-                const entryId = loader.modelData.id;
+            const entry = repeater.itemAt(i) as EntryWrapper;
+            if (entry?.modelData) {
+                const entryId = entry.modelData.id;
                 if (entryId === "activeWindow" || entryId === "spacer") {
-                    xVal = loader.x + loader.width;
+                    xVal = entry.x + entry.width;
                     break;
                 }
             }
@@ -38,20 +43,18 @@ Item {
 
     property real workspacesX: {
         for (let i = 0; i < repeater.count; i++) {
-            const loader = repeater.itemAt(i) as WrappedLoader;
-            if (loader && loader.enabled && loader.modelData && loader.modelData.id === "workspaces") {
-                return loader.x;
-            }
+            const entry = repeater.itemAt(i) as EntryWrapper;
+            if (entry?.modelData?.id === "workspaces")
+                return entry.x;
         }
         return 0;
     }
 
     property real workspacesWidth: {
         for (let i = 0; i < repeater.count; i++) {
-            const loader = repeater.itemAt(i) as WrappedLoader;
-            if (loader && loader.enabled && loader.modelData && loader.modelData.id === "workspaces") {
-                return loader.width;
-            }
+            const entry = repeater.itemAt(i) as EntryWrapper;
+            if (entry?.modelData?.id === "workspaces")
+                return entry.width;
         }
         return 0;
     }
@@ -61,15 +64,16 @@ Item {
             return;
 
         for (let i = 0; i < repeater.count; i++) {
-            const loader = repeater.itemAt(i) as WrappedLoader;
-            if (loader?.enabled && loader.entryId === "tray") {
-                (loader.item as Tray).expanded = false;
-            }
+            const tray = (repeater.itemAt(i) as EntryWrapper).item as Tray;
+            if (tray)
+                tray.expanded = false;
         }
     }
 
+    // [fork] Vízszintes bar: a találatot x mentén keressük, a popout középpontja
+    // is x koordináta (upstreamben y).
     function checkPopout(x: real): void {
-        const ch = layout.childAt(x, layout.height / 2) as WrappedLoader;
+        const ch = layout.childAt(x, layout.height / 2) as EntryWrapper;
 
         if (ch?.entryId !== "tray")
             closeTray();
@@ -117,8 +121,9 @@ Item {
         }
     }
 
+    // [fork] Vízszintes bar: a hangerő/fényerő felezés x mentén történik.
     function handleWheel(x: real, angleDelta: point): void {
-        const ch = layout.childAt(x, layout.height / 2) as WrappedLoader;
+        const ch = layout.childAt(x, layout.height / 2) as EntryWrapper;
         if (ch?.entryId === "workspaces" && Config.bar.scrollActions.workspaces) {
             // Workspace scroll
             const mon = (GlobalConfig.bar.workspaces.perMonitorWorkspaces ? Hypr.monitorFor(screen) : Hypr.focusedMonitor);
@@ -134,7 +139,7 @@ Item {
             else if (angleDelta.y < 0)
                 Audio.decrementVolume();
         } else if (Config.bar.scrollActions.brightness) {
-            // Brightness scroll on bottom half
+            // Brightness scroll on right half
             const monitor = Brightness.getMonitorForScreen(screen);
             if (angleDelta.y > 0)
                 monitor.setBrightness(monitor.brightness + GlobalConfig.services.brightnessIncrement);
@@ -143,126 +148,119 @@ Item {
         }
     }
 
+    // [fork] RowLayout az upstream ColumnLayout helyett
     RowLayout {
         id: layout
+
         anchors.fill: parent
         spacing: Tokens.spacing.medium
 
-    Repeater {
-        id: repeater
+        Repeater {
+            id: repeater
 
-        model: Config.bar.entries
-
-        DelegateChooser {
-            role: "id"
-
-            DelegateChoice {
-                roleValue: "spacer"
-                delegate: WrappedLoader {
-                    Layout.fillWidth: enabled
-                }
+            model: ScriptModel {
+                values: root.Config.bar.entries.filter(e => e.enabled ?? true)
             }
-            DelegateChoice {
-                roleValue: "logo"
-                delegate: WrappedLoader {
-                    sourceComponent: OsIcon {}
-                }
-            }
-            DelegateChoice {
-                roleValue: "workspaces"
-                delegate: WrappedLoader {
-                    sourceComponent: Workspaces {
-                        screen: root.screen
-                        fullscreen: root.fullscreen
+
+            DelegateChooser {
+                role: "id"
+
+                DelegateChoice {
+                    roleValue: "spacer"
+                    delegate: EntryWrapper {
+                        Layout.fillWidth: true // [fork] upstream: fillHeight
                     }
                 }
-            }
-            DelegateChoice {
-                roleValue: "activeWindow"
-                delegate: WrappedLoader {
-                    Layout.fillWidth: true
-                    visible: !root.fullscreen
-                    sourceComponent: ActiveWindow {
-                        bar: root
-                        monitor: Brightness.getMonitorForScreen(root.screen)
+                DelegateChoice {
+                    roleValue: "logo"
+                    delegate: EntryWrapper {
+                        OsIcon {
+                            objectName: "taskbarLogo"
+                        }
                     }
                 }
-            }
-            DelegateChoice {
-                roleValue: "tray"
-                delegate: WrappedLoader {
-                    visible: !root.fullscreen
-                    sourceComponent: Tray {}
+                DelegateChoice {
+                    roleValue: "workspaces"
+                    delegate: EntryWrapper {
+                        Workspaces {
+                            objectName: "taskbarWorkspaces"
+                            screen: root.screen
+                            fullscreen: root.fullscreen
+                        }
+                    }
                 }
-            }
-            DelegateChoice {
-                roleValue: "clock"
-                delegate: WrappedLoader {
-                    visible: !root.fullscreen
-                    sourceComponent: Clock {}
+                DelegateChoice {
+                    roleValue: "activeWindow"
+                    delegate: EntryWrapper {
+                        Layout.fillWidth: true // [fork]
+                        ActiveWindow {
+                            objectName: "taskbarActiveWindow"
+                            bar: root
+                            monitor: Brightness.getMonitorForScreen(root.screen)
+                        }
+                    }
                 }
-            }
-            DelegateChoice {
-                roleValue: "statusIcons"
-                delegate: WrappedLoader {
-                    visible: !root.fullscreen
-                    sourceComponent: StatusIcons {}
+                DelegateChoice {
+                    roleValue: "tray"
+                    delegate: EntryWrapper {
+                        Tray {
+                            objectName: "taskbarTray"
+                        }
+                    }
                 }
-            }
-            DelegateChoice {
-                roleValue: "power"
-                delegate: WrappedLoader {
-                    sourceComponent: Power {
-                        visibilities: root.visibilities
+                DelegateChoice {
+                    roleValue: "clock"
+                    delegate: EntryWrapper {
+                        Clock {
+                            objectName: "taskbarClock"
+                        }
+                    }
+                }
+                DelegateChoice {
+                    roleValue: "statusIcons"
+                    delegate: EntryWrapper {
+                        StatusIcons {
+                            objectName: "taskbarStatusIcons"
+                        }
+                    }
+                }
+                DelegateChoice {
+                    roleValue: "power"
+                    delegate: EntryWrapper {
+                        Power {
+                            objectName: "taskbarPowerButton"
+                            screenState: root.screenState
+                        }
                     }
                 }
             }
         }
     }
 
-    }
-
-    component WrappedLoader: Loader {
-        required enabled
+    component EntryWrapper: Item {
         required property var modelData
-        readonly property string entryId: modelData ? modelData.id : ""
         required property int index
+        default property Item item
+        readonly property string entryId: modelData.id
 
-        function findFirstEnabled(): Item {
-            const count = repeater.count;
-            for (let i = 0; i < count; i++) {
-                const item = repeater.itemAt(i);
-                if (item?.enabled)
-                    return item;
-            }
-            return null;
-        }
-
-        function findLastEnabled(): Item {
-            for (let i = repeater.count - 1; i >= 0; i--) {
-                const item = repeater.itemAt(i);
-                if (item?.enabled)
-                    return item;
-            }
-            return null;
-        }
-
-        asynchronous: true
+        // [fork] Vízszintes bar: a szél-padding bal/jobb oldalra kerül,
+        // és az igazítás vertikális. Upstreamben top/bottom + AlignHCenter.
+        Layout.leftMargin: index === 0 ? root.hPadding : 0
+        Layout.rightMargin: index === repeater.count - 1 ? root.hPadding : 0
         Layout.alignment: Qt.AlignVCenter
 
-        // Cursed ahh thing to add padding to first and last enabled components
-        Layout.leftMargin: findFirstEnabled() === this ? root.hPadding : 0
-        Layout.rightMargin: findLastEnabled() === this ? root.hPadding : 0
+        implicitWidth: item?.implicitWidth ?? 0
+        implicitHeight: item?.implicitHeight ?? 0
 
-        visible: enabled
-        active: enabled
+        children: item
     }
 
-    // Mini Dashboard Pill, anchored to the top center
+    // [fork] Mini dashboard pill, a bar tetejéhez, középre horgonyozva
     MiniDash {
         id: miniDash
+
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
-        visibilities: root.visibilities
+        screenState: root.screenState
     }
 }
