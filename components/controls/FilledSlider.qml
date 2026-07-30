@@ -103,7 +103,7 @@ Slider {
                     text: root.icon
                     color: Colours.palette.m3inverseOnSurface
                     anchors.centerIn: parent
-                    fontStyle.pointSize: Tokens.font.size.larger
+                    fontStyle: Tokens.font.icon.medium
                     visible: true
                 }
 
@@ -112,8 +112,7 @@ Slider {
                     text: Math.round(root.value * 100)
                     color: Colours.palette.m3inverseOnSurface
                     anchors.centerIn: parent
-                    font.family: Tokens.font.family.sans
-                    font.pointSize: Tokens.font.size.small
+                    font: Tokens.font.body.small
                     visible: false
                 }
             }

@@ -11,7 +11,7 @@ ShapePath {
 
     required property Item wrapper
 
-    readonly property real rounding: Tokens.rounding.normal
+    readonly property real rounding: Tokens.rounding.medium
 
     readonly property real activeAlpha: wrapper.hasCurrent || wrapper.isDetached ? 1.0 : 0.0
 
