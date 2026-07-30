@@ -53,10 +53,5 @@
     "upstream_path": "modules/bar/components/workspaces/SpecialWorkspaces.qml",
     "upstream_blob": "6937fb814e9638dbdedbe2e60b4bda1dbb425fee",
     "upstream_ref": "06b4fe07"
-  },
-  "HClipWrapper.qml": {
-    "upstream_path": "modules/bar/popouts/ClipWrapper.qml",
-    "upstream_blob": "997852197cdfeb3e79d3b10c5311ec75dd047c98",
-    "upstream_ref": "06b4fe07"
   }
 }
