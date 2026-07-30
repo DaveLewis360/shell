@@ -4,9 +4,18 @@ Ez a dokumentum leírja, **mit** módosít ez a fork a `caelestia-dots/shell`
 upstreamhez képest, és **melyik változtatás mennyire konfliktusveszélyes**
 egy upstream merge során. Merge előtt ezt érdemes átfutni.
 
-Utolsó frissítés: 2026-07-29
-Bázis: `v2.1.0` vonal (merge-base `145a6795`, 2026-06-28)
-Diff felület: **38 fájl, +1005 / -523**
+Utolsó frissítés: 2026-07-30
+Bázis: **`v2.2.0`** (merge-base `06b4fe07`, 2026-07-30)
+Diff felület: **38 fájl, +1202 / -579** — ebből 3 fork-only fájl (nulla
+konfliktus-kockázat) és 35 módosított upstream fájl 295 hunkban.
+
+A `fork-diff` mindig a friss számokat adja:
+
+```bash
+fork-diff              # összefoglaló kockázati csoportokkal
+fork-diff --files      # fájlonkénti bontás
+fork-diff --forecast   # mi fog ütközni a következő merge-nél
+```
 
 ---
 
@@ -68,8 +77,7 @@ A `rerere` az első ilyen döntés után emlékezni fog rá.
 
 | Fájl | +/- | Mit ad |
 |---|---|---|
-| `modules/bar/components/MiniDash.qml` | +243/-0 | **ÚJ** — mini dashboard a barban |
-| `modules/bar/popouts/Background.qml` | +79/-0 | **ÚJ** — üveg/blur popout háttér |
+| `custom/MiniDash.qml` | +243/-0 | **ÚJ** — mini dashboard a barban, izolálva a `custom/`-ba |
 | `modules/bar/components/Clock.qml` | +20/-71 | napnév + hónap napja az óra mellett |
 | `services/Players.qml` | +21/-0 | `lastArtUrl` — borítókép megtartása |
 | `utils/Images.qml` | +10/-0 | segédfüggvények |
