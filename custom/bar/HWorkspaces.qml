@@ -30,7 +30,19 @@ StyledClippingRect {
     property real blur: onSpecial ? 1 : 0
 
     implicitHeight: Tokens.sizes.bar.innerWidth
-    implicitWidth: layout.implicitWidth + Tokens.padding.small
+    // [fork] Special workspace-en a sor akár szélesebb is lehet a normál
+    // pöttyöknél (ikonok vs pöttyök), ezért a nagyobbat vesszük. A margót is
+    // hozzáadjuk, amit a Loader levon, különben az utolsó ikon a maszk szélére
+    // esik és elfakul.
+    readonly property real specialContentWidth: root.onSpecial && specialWs.item
+        ? (specialWs.item as HSpecialWorkspaces).contentWidth + Tokens.padding.extraSmall * 2
+        : 0
+
+    implicitWidth: Math.max(layout.implicitWidth, specialContentWidth) + Tokens.padding.small
+
+    Behavior on implicitWidth {
+        Anim {}
+    }
 
     color: "transparent"
     radius: Tokens.rounding.full

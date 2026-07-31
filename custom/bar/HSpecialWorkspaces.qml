@@ -15,18 +15,15 @@ import qs.utils
 Item {
     id: root
 
-    Timer {
-        interval: 1000
-        running: true
-        repeat: true
-        onTriggered: {
-            console.log("[SpecialWs Debug] activeSpecial:", root.activeSpecial, "currentIndex:", view.currentIndex, "currentItem:", view.currentItem, "size:", view.currentItem ? view.currentItem.size : "null", "model:", model.values ? model.values.length : "no values");
-        }
-    }
-
     required property ShellScreen screen
     readonly property HyprlandMonitor monitor: Hypr.monitorFor(screen)
     readonly property string activeSpecial: (GlobalConfig.bar.workspaces.perMonitorWorkspaces ? monitor : Hypr.focusedMonitor)?.lastIpcObject.specialWorkspace?.name ?? ""
+
+    // [fork] A befoglaló HWorkspaces ebből tudja, mennyi hely kell.
+    // A special ikonok material ikonok, a normál workspace-ek apró pöttyök —
+    // öt ikon fizikailag többet kér öt pöttynél, ezért a konténernek nőnie kell,
+    // különben a maszk elfakítja az utolsót. Térközzel ez nem megoldható.
+    readonly property real contentWidth: view.contentWidth
 
     layer.enabled: true
     layer.effect: Mask {
@@ -104,7 +101,12 @@ Item {
         id: view
 
         anchors.fill: parent
-        spacing: Tokens.spacing.medium
+        // [fork] A normál workspace-sor extraSmall térközt használ, ez a sor
+        // viszont upstreamben medium-ot. Vertikálisan ez nem tűnik fel, mert ott
+        // a teljes bar-magasság rendelkezésre áll; vízszintesen viszont a
+        // konténer pontosan a normál sor SZÉLESSÉGE, és a 4 nagyobb rés
+        // összeadódva kilöki az utolsó elemet. Ezért itt egyeztetjük.
+        spacing: Math.floor(Tokens.spacing.extraSmall)
         interactive: false
 
         currentIndex: model.values.findIndex(w => w.name === root.activeSpecial || w.name === "special:" + root.activeSpecial)
