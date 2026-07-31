@@ -42,6 +42,23 @@ Item {
     // egyetlen lejátszás-gomb.
     property bool vertical: false
 
+    // [fork] Származtatott méretek. Korábban itt kézzel beírt pixelértékek voltak
+    // (34, 46, 38, 160, 26, 20), amik nem követték a felhasználó token-beállításait
+    // és nem illeszkedtek a szomszédos elemekhez. Mindegyik a bar belső méretéből
+    // és a térköz-skálából jön, egyetlen helyen.
+    readonly property real coverSize: Tokens.sizes.bar.innerWidth - Tokens.spacing.small
+    readonly property real visualiserSize: coverSize + Tokens.spacing.medium
+    readonly property real btnSize: Tokens.sizes.bar.innerWidth
+    readonly property real mediaTextWidth: Tokens.sizes.bar.innerWidth * 4
+    readonly property real vCoverSize: Tokens.sizes.bar.innerWidth - Tokens.padding.medium
+    readonly property real separatorLength: Tokens.sizes.bar.innerWidth / 2
+
+    // Egyetlen forrás a hőmérséklet-figyelmeztetéshez, négy ismételt 75 helyett.
+    readonly property real tempWarnC: 75
+
+    // A halvány elválasztó vonalak áttetszősége — egy helyen, hogy egységes legyen.
+    readonly property real separatorOpacity: 0.2
+
     readonly property real pillLength: Math.max(vertical ? verticalLayout.implicitHeight : systemWidth, vertical ? 0 : mediaWidth) + Tokens.padding.large * 2
 
     // A pill elbújik, amíg a dashboard nyitva van — a kettő ugyanazt az
@@ -137,7 +154,7 @@ Item {
             VMetric {
                 icon: "memory"
                 value: Cpu.percentage
-                colour: Cpu.temperature > 75 ? Colours.palette.m3error : Colours.palette.m3primary
+                colour: Cpu.temperature > root.tempWarnC ? Colours.palette.m3error : Colours.palette.m3primary
             }
             VMetric {
                 icon: "memory_alt"
@@ -152,25 +169,25 @@ Item {
             VMetric {
                 icon: "videogame_asset"
                 value: Gpu.percentage
-                colour: Gpu.temperature > 75 ? Colours.palette.m3error : Colours.palette.m3primary
+                colour: Gpu.temperature > root.tempWarnC ? Colours.palette.m3error : Colours.palette.m3primary
                 visible: Gpu.percentage >= 0
             }
 
             // Média: borító és egyetlen lejátszás-gomb — cím/előadó nem fér ki.
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: 20
+                Layout.preferredWidth: root.separatorLength
                 visible: root.hasMedia
                 implicitHeight: 1
                 color: Colours.palette.m3outlineVariant
-                opacity: 0.2
+                opacity: root.separatorOpacity
             }
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 visible: root.hasMedia
-                implicitWidth: 26
-                implicitHeight: 26
-                radius: 13
+                implicitWidth: root.vCoverSize
+                implicitHeight: root.vCoverSize
+                radius: root.vCoverSize / 2
                 color: Colours.palette.m3surfaceContainer
                 clip: true
 
@@ -224,30 +241,29 @@ Item {
                             MaterialIcon {
                                 text: "memory"
                                 color: Colours.palette.m3primary
-                                fontStyle.pointSize: 18
+                                fontStyle: Tokens.font.icon.medium
                             }
                             Column {
-                                spacing: -4
+                                spacing: -Tokens.spacing.extraSmall
 
                                 StyledText {
                                     text: Math.round(Cpu.percentage * 100) + "%"
-                                    font.pointSize: 12
-                                    font.bold: true
+                                    font: Tokens.font.mono.builders.medium.weight(Font.Bold).build()
                                 }
                                 StyledText {
                                     text: Math.round(Cpu.temperature) + "°C"
-                                    font.pointSize: 10
-                                    color: Cpu.temperature > 75 ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
+                                    font: Tokens.font.mono.small
+                                    color: Cpu.temperature > root.tempWarnC ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
                                 }
                             }
                         }
 
                         Rectangle {
                             Layout.alignment: Qt.AlignVCenter
-                            width: 1
-                            height: 20
+                            width: 1 // hajszálvonal
+                            height: root.separatorLength
                             color: Colours.palette.m3outlineVariant
-                            opacity: 0.2
+                            opacity: root.separatorOpacity
                         }
 
                         // RAM
@@ -258,19 +274,18 @@ Item {
                             MaterialIcon {
                                 text: "memory_alt"
                                 color: Colours.palette.m3secondary
-                                fontStyle.pointSize: 18
+                                fontStyle: Tokens.font.icon.medium
                             }
                             Column {
-                                spacing: -4
+                                spacing: -Tokens.spacing.extraSmall
 
                                 StyledText {
                                     text: Math.round(Memory.percentage * 100) + "%"
-                                    font.pointSize: 12
-                                    font.bold: true
+                                    font: Tokens.font.mono.builders.medium.weight(Font.Bold).build()
                                 }
                                 StyledText {
                                     text: (Memory.used / 1024 / 1024).toFixed(1) + "G"
-                                    font.pointSize: 10
+                                    font: Tokens.font.mono.small
                                     color: Colours.palette.m3onSurfaceVariant
                                 }
                             }
@@ -278,10 +293,10 @@ Item {
 
                         Rectangle {
                             Layout.alignment: Qt.AlignVCenter
-                            width: 1
-                            height: 20
+                            width: 1 // hajszálvonal
+                            height: root.separatorLength
                             color: Colours.palette.m3outlineVariant
-                            opacity: 0.2
+                            opacity: root.separatorOpacity
                         }
 
                         // Disk
@@ -292,19 +307,18 @@ Item {
                             MaterialIcon {
                                 text: "hard_drive"
                                 color: Colours.palette.m3tertiary
-                                fontStyle.pointSize: 18
+                                fontStyle: Tokens.font.icon.medium
                             }
                             Column {
-                                spacing: -4
+                                spacing: -Tokens.spacing.extraSmall
 
                                 StyledText {
                                     text: Math.round((Storage.primaryDisk?.perc ?? 0) * 100) + "%"
-                                    font.pointSize: 12
-                                    font.bold: true
+                                    font: Tokens.font.mono.builders.medium.weight(Font.Bold).build()
                                 }
                                 StyledText {
                                     text: "DISK"
-                                    font.pointSize: 10
+                                    font: Tokens.font.mono.small
                                     color: Colours.palette.m3onSurfaceVariant
                                 }
                             }
@@ -312,10 +326,10 @@ Item {
 
                         Rectangle {
                             Layout.alignment: Qt.AlignVCenter
-                            width: 1
-                            height: 20
+                            width: 1 // hajszálvonal
+                            height: root.separatorLength
                             color: Colours.palette.m3outlineVariant
-                            opacity: 0.2
+                            opacity: root.separatorOpacity
                             visible: Gpu.percentage >= 0
                         }
 
@@ -328,20 +342,19 @@ Item {
                             MaterialIcon {
                                 text: "videogame_asset"
                                 color: Colours.palette.m3primary
-                                fontStyle.pointSize: 18
+                                fontStyle: Tokens.font.icon.medium
                             }
                             Column {
-                                spacing: -4
+                                spacing: -Tokens.spacing.extraSmall
 
                                 StyledText {
                                     text: Math.round(Gpu.percentage * 100) + "%"
-                                    font.pointSize: 12
-                                    font.bold: true
+                                    font: Tokens.font.mono.builders.medium.weight(Font.Bold).build()
                                 }
                                 StyledText {
                                     text: Math.round(Gpu.temperature) + "°C"
-                                    font.pointSize: 10
-                                    color: Gpu.temperature > 75 ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
+                                    font: Tokens.font.mono.small
+                                    color: Gpu.temperature > root.tempWarnC ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
                                 }
                             }
                         }
@@ -369,8 +382,8 @@ Item {
                         visible: root.hasMedia
 
                         Item {
-                            implicitWidth: 46
-                            implicitHeight: 46
+                            implicitWidth: root.visualiserSize
+                            implicitHeight: root.visualiserSize
 
                             Shape {
                                 id: visualiser
@@ -423,15 +436,15 @@ Item {
                                 id: cover
 
                                 anchors.centerIn: parent
-                                width: 34
-                                height: 34
-                                radius: 17
+                                width: root.coverSize
+                                height: root.coverSize
+                                radius: root.coverSize / 2
                                 color: Colours.palette.m3surfaceContainer
 
                                 MaterialIcon {
                                     anchors.centerIn: parent
                                     text: "music_note"
-                                    font.pointSize: 14
+                                    font: Tokens.font.body.medium
                                     color: Colours.palette.m3onSurfaceVariant
                                     visible: image.status != Image.Ready
                                 }
@@ -447,21 +460,20 @@ Item {
 
                         Column {
                             Layout.alignment: Qt.AlignVCenter
-                            Layout.preferredWidth: 160
-                            spacing: -2
+                            Layout.preferredWidth: root.mediaTextWidth
+                            spacing: -Tokens.spacing.extraSmall / 2
 
                             StyledText {
                                 width: parent.width
                                 text: (Players.active?.trackTitle || "")
-                                font.pointSize: 13
-                                font.weight: 600
+                                font: Tokens.font.body.builders.medium.weight(Font.DemiBold).build()
                                 elide: Text.ElideRight
                                 color: Colours.palette.m3primary
                             }
                             StyledText {
                                 width: parent.width
                                 text: (Players.active?.trackArtist || "")
-                                font.pointSize: 11
+                                font: Tokens.font.body.small
                                 elide: Text.ElideRight
                                 color: Colours.palette.m3onSurfaceVariant
                                 visible: text.length > 0
@@ -469,7 +481,7 @@ Item {
                         }
 
                         Row {
-                            spacing: 4
+                            spacing: Tokens.spacing.extraSmall
                             Layout.alignment: Qt.AlignVCenter
 
                             ControlBtn {
@@ -503,20 +515,19 @@ Item {
         required property color colour
 
         Layout.alignment: Qt.AlignHCenter
-        spacing: -2
+        spacing: -Tokens.spacing.extraSmall / 2
 
         MaterialIcon {
             Layout.alignment: Qt.AlignHCenter
             text: metric.icon
             color: metric.colour
-            fontStyle.pointSize: 15
+            fontStyle: Tokens.font.icon.small
         }
         StyledText {
             Layout.alignment: Qt.AlignHCenter
             text: `${Math.round(metric.value * 100)}%`
             color: metric.colour
-            font.pointSize: 9
-            font.bold: true
+            font: Tokens.font.mono.builders.small.weight(Font.Bold).build()
         }
     }
 
@@ -527,8 +538,8 @@ Item {
 
         signal clicked
 
-        implicitWidth: 38
-        implicitHeight: 38
+        implicitWidth: root.btnSize
+        implicitHeight: root.btnSize
         opacity: enabled ? 1 : 0.3
 
         StateLayer {
@@ -539,7 +550,7 @@ Item {
         MaterialIcon {
             anchors.centerIn: parent
             text: btn.icon
-            fontStyle.pointSize: 20
+            fontStyle: Tokens.font.icon.medium
             color: Colours.palette.m3onSurface
         }
     }
