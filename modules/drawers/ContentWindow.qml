@@ -53,13 +53,11 @@ StyledWindow {
     readonly property bool liquidStyle: ExtrasConfig.liquidStyle
 
     // [fork] Szigetes bar-háttér. Korábban ezt a vízszintes/vertikális váltó
-    // döntötte el mellékhatásként; most külön beállítás, ami alapból a stílust
-    // követi (liquid → folyamatos, floating → szigetek).
-    //
-    // A sziget-geometria a vízszintes bar elemeire épül (HBar.rightPartX /
-    // workspacesX), ezért vertikális módban nem értelmezett — ott a bar mindig a
-    // megvastagított képernyő-keret része, vagyis folyamatos.
-    readonly property bool barIslands: bar.horizontal && ExtrasConfig.barIslands
+    // döntötte el mellékhatásként, majd egy ideig csak vízszintesen működött; most
+    // mindkét orientációban él. A geometriát a bar szolgáltatja a saját tengelye
+    // mentén (BarWrapper.clusterStart és .islandEntries), ezért itt csak azt kell
+    // eldönteni, melyik tengelyre képezzük le.
+    readonly property bool barIslands: ExtrasConfig.barIslands
 
     readonly property int dragMaskPadding: {
         if (focusGrab.active || panels.popouts.isDetached)
@@ -191,14 +189,11 @@ StyledWindow {
             // [fork] Folyamatos módban a bar a képernyő-keret helyi
             // megvastagítása: vertikálisan a bal, vízszintesen a felső él nyúlik
             // be a bar teljes vastagságáig, így a bar és a panelek egyetlen
-            // felületet alkotnak. Szigetes módban a keret vékony marad, és a bar
-            // hátterét a workspacesBg/barBg blokkok adják.
-            //
-            // Korábban a felső él SOHA nem nyúlt be, ezért vízszintes bar mellett
-            // csak a szigetes megjelenés létezett.
-            borderLeft: (bar.horizontal ? root.borderThickness : bar.implicitWidth) - anchors.margins - root.sdfBorderOffset
+            // felületet alkotnak. Szigetes módban a keret mindkét élen vékony
+            // marad, és a bar hátterét a sziget-blokkok adják.
+            borderLeft: (bar.horizontal || root.barIslands ? root.borderThickness : bar.implicitWidth) - anchors.margins - root.sdfBorderOffset
             borderRight: root.borderThickness - anchors.margins - root.sdfBorderOffset
-            borderTop: (bar.horizontal && !root.barIslands ? bar.implicitHeight : root.borderThickness) - anchors.margins - root.sdfBorderOffset
+            borderTop: (!bar.horizontal || root.barIslands ? root.borderThickness : bar.implicitHeight) - anchors.margins - root.sdfBorderOffset
             borderBottom: root.borderThickness - anchors.margins - root.sdfBorderOffset
         }
 
@@ -271,21 +266,23 @@ StyledWindow {
         // [fork] A szigetes bar-háttér. Csak szigetes módban látszik; folyamatos
         // módban a képernyő-keret nyúlik be a bar alá helyette.
         //
-        // Két rész van: a jobb oldali összefüggő blokk (barBg), és a magukban álló
-        // elemek (workspaces, MiniDash), amiket a bar sorol fel. Ez utóbbi azért
-        // kell, mert a pillek áttetsző m3surfaceContainer-t festenek — tömör
-        // backdrop nélkül közvetlenül a wallpaperre kerültek, és alig látszottak.
-        // A jobb oldalon ugyanezt a szerepet a barBg töltötte be, ezért ott jó volt.
+        // Két rész van: a bar végén lévő összefüggő blokk (barBg), és a magukban
+        // álló elemek (workspaces, illetve a középső slot). Ez utóbbi azért kell,
+        // mert a pillek áttetsző m3surfaceContainer-t festenek — tömör backdrop
+        // nélkül közvetlenül a wallpaperre kerültek, és alig látszottak.
+        //
+        // A bar a geometriát a SAJÁT tengelye mentén adja (pos/len), a rá merőleges
+        // méret a `thick`; itt csak leképezzük a megfelelő tengelyre.
         Repeater {
             model: root.barIslands ? bar.islandEntries : []
 
             Rectangle {
                 required property var modelData
 
-                x: modelData.x
-                y: bar.y + (bar.implicitHeight - modelData.h) / 2
-                implicitWidth: modelData.w
-                implicitHeight: modelData.h
+                x: bar.horizontal ? modelData.pos : bar.x + (bar.implicitWidth - modelData.thick) / 2
+                y: bar.horizontal ? bar.y + (bar.implicitHeight - modelData.thick) / 2 : modelData.pos
+                implicitWidth: bar.horizontal ? modelData.len : modelData.thick
+                implicitHeight: bar.horizontal ? modelData.thick : modelData.len
                 radius: modelData.r
                 color: Qt.alpha(root.surfaceColour, 1)
             }
@@ -295,10 +292,10 @@ StyledWindow {
             id: barBg
 
             visible: root.barIslands
-            x: bar.rightPartX
-            y: bar.y
-            implicitWidth: bar.width - bar.rightPartX
-            implicitHeight: bar.implicitHeight
+            x: bar.horizontal ? bar.clusterStart : bar.x
+            y: bar.horizontal ? bar.y : bar.clusterStart
+            implicitWidth: bar.horizontal ? bar.width - bar.clusterStart : bar.implicitWidth
+            implicitHeight: bar.horizontal ? bar.implicitHeight : bar.height - bar.clusterStart
             radius: root.borderRounding
             color: Qt.alpha(root.surfaceColour, 1)
         }

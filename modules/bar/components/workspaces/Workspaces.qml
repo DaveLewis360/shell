@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 
+import qs.custom
 import QtQuick
 import QtQuick.Effects
 import QtQuick.Layouts
@@ -30,7 +31,10 @@ StyledClippingRect {
     implicitWidth: Tokens.sizes.bar.innerWidth
     implicitHeight: layout.implicitHeight + Tokens.padding.small
 
-    color: Colours.tPalette.m3surfaceContainer
+    // [fork] Szigetes módban a ContentWindow fest alá tömör szigetet, ezért a pill
+    // nem festhet még egy réteget — két réteg egymáson világosabb lenne a bar
+    // többi blokkjánál. Folyamatos módban változatlan az upstream viselkedés.
+    color: ExtrasConfig.barIslands ? "transparent" : Colours.tPalette.m3surfaceContainer
     radius: Tokens.rounding.full
 
     Item {

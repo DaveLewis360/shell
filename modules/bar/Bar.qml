@@ -19,6 +19,39 @@ ColumnLayout {
     required property bool fullscreen
     readonly property int vPadding: Tokens.padding.large
 
+    // [fork] Sziget-háttér geometria — a vízszintes bar (custom/bar/HBar.qml)
+    // contractjának vertikális párja, hogy a ContentWindow ugyanúgy tudja kezelni
+    // mindkét orientációt. A `pos`/`len` a bar tengelye mentén értendő (itt Y), a
+    // `thick` arra merőlegesen. Upstreamben ez a fogalom nem létezik: a bar ott
+    // mindig a képernyő-keret része, sziget nélkül.
+    readonly property real clusterStart: {
+        let val = height; // ha nincs fillWidth elem, az alsó szél
+        for (let i = repeater.count - 1; i >= 0; i--) {
+            const entry = repeater.itemAt(i) as EntryWrapper;
+            const id = entry?.modelData?.id;
+            if (id === "activeWindow" || id === "spacer")
+                return entry.y + entry.height;
+        }
+        return val;
+    }
+
+    readonly property var islandEntries: {
+        const out = [];
+        for (let i = 0; i < repeater.count; i++) {
+            const entry = repeater.itemAt(i) as EntryWrapper;
+            const id = entry?.modelData?.id;
+            if (!entry || (id !== "workspaces" && id !== "activeWindow"))
+                continue;
+            out.push({
+                pos: entry.y,
+                len: entry.height,
+                thick: entry.width,
+                r: id === "workspaces" ? Tokens.rounding.full : Tokens.rounding.extraLarge
+            });
+        }
+        return out;
+    }
+
     function closeTray(): void {
         if (!Config.bar.tray.compact)
             return;

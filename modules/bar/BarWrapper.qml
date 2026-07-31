@@ -36,8 +36,8 @@ Item {
     readonly property int clampedHeight: Math.max(Config.border.minThickness, implicitHeight)
 
     // [fork] Csak a vízszintes bar szolgáltatja (a sziget-háttér geometriájához)
-    readonly property real rightPartX: (content.item as HBar)?.rightPartX ?? (width / 2)
-    readonly property var islandEntries: (content.item as HBar)?.islandEntries ?? []
+    readonly property real clusterStart: (horizontal ? (content.item as HBar)?.clusterStart : (content.item as Bar)?.clusterStart) ?? 0
+    readonly property var islandEntries: (horizontal ? (content.item as HBar)?.islandEntries : (content.item as Bar)?.islandEntries) ?? []
     readonly property int hPadding: (content.item as HBar)?.hPadding ?? padding
 
     // Mindkét változat ugyanezt a három függvényt kínálja. A hívó dönti el, hogy

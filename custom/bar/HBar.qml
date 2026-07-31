@@ -35,9 +35,10 @@ RowLayout {
     // [fork] upstream: vPadding (a bar függőleges, ott a padding fent/lent van)
     readonly property int hPadding: Tokens.padding.large
 
-    // [fork] A sziget-háttér geometriájához: hol végződik a bal oldali rész (az
-    // első fillWidth elem után).
-    property real rightPartX: {
+    // [fork] A sziget-háttér geometriájához: hol kezdődik a jobb oldali blokk (az
+    // utolsó fillWidth elem után). A vertikális Bar.qml ugyanezt a nevet használja,
+    // csak Y mentén — így a ContentWindow orientáció-függetlenül tudja kezelni.
+    property real clusterStart: {
         let xVal = width; // ha nincs fillWidth elem, a jobb szél
         for (let i = repeater.count - 1; i >= 0; i--) {
             const entry = repeater.itemAt(i) as EntryWrapper;
@@ -52,6 +53,12 @@ RowLayout {
         return xVal;
     }
 
+    // [fork] A bar középső sávjában egyszerre EGY elem van: vagy az aktív ablak
+    // címe, vagy a MiniDash. A MiniDash kapcsolója dönt — bekapcsolva átveszi a
+    // helyet. Így a középső elemet két fillWidth spacer fogja közre, és a lentebbi
+    // középre igazítás egzakt lesz; három fillWidth elemmel nem lenne az.
+    readonly property string centreEntry: ExtrasConfig.miniDash ? "miniDash" : "activeWindow"
+
     // [fork] Szigetes módban ezek az elemek kapnak saját, TÖMÖR hátteret — ugyanazt,
     // amit a bar jobb oldali blokkja (barBg) is használ.
     //
@@ -65,54 +72,49 @@ RowLayout {
         for (let i = 0; i < repeater.count; i++) {
             const entry = repeater.itemAt(i) as EntryWrapper;
             const id = entry?.modelData?.id;
-            if (!entry || (id !== "workspaces" && id !== "miniDash"))
+            if (!entry || (id !== "workspaces" && id !== root.centreEntry))
                 continue;
             out.push({
-                x: entry.x,
-                w: entry.width,
-                h: entry.height,
-                // A MiniDash a dashboard lekerekítését követi (Tokens.rounding
+                pos: entry.x,
+                len: entry.width,
+                thick: entry.height,
+                // A középső elem a dashboard lekerekítését követi (Tokens.rounding
                 // .extraLarge — ugyanaz, amit a PanelBg használ), a workspaces
                 // jelző viszont kapszula marad, mert upstreamben is az.
-                r: id === "miniDash" ? Tokens.rounding.extraLarge : Tokens.rounding.full
+                r: id === "workspaces" ? Tokens.rounding.full : Tokens.rounding.extraLarge
             });
         }
         return out;
     }
 
-    // [fork] A MiniDash vízszintes középre igazítása.
+    // [fork] A középső elem vízszintes középre igazítása.
     //
     // A RowLayout a szabad helyet a fillWidth elemek között egyenlően osztja, ezért
-    // a pill pontosan annyival csúszik el a képernyő közepétől, amennyivel a tőle
-    // jobbra lévő fix tartalom nehezebb a bal oldalinál — a különbség FELÉVEL. Ha a
-    // könnyebb oldalra visszaadjuk a teljes különbséget margóként, a két oldal fix
-    // súlya kiegyenlítődik, és a pill középre kerül.
+    // a középső elem pontosan annyival csúszik el a képernyő közepétől, amennyivel a
+    // tőle jobbra lévő fix tartalom nehezebb a bal oldalinál — a különbség FELÉVEL.
+    // Ha a könnyebb oldalra visszaadjuk a teljes különbséget margóként, a két oldal
+    // fix súlya kiegyenlítődik, és az elem középre kerül.
     //
-    // A fillWidth elemek (spacer, activeWindow) NEM számítanak bele. A spacernek
-    // nincs saját szélessége; az activeWindow-t pedig azért kell kihagyni, mert a
-    // szélessége a címből jön, a cím a maxWidth-ből, a maxWidth a többi elem
-    // szélességéből — ha ez visszahatna a margóra, kötés-hurok lenne belőle.
-    //
-    // Következmény: az igazítás akkor EGZAKT, ha a középső sávban egy elem van,
-    // vagyis az aktív ablak és a MiniDash egymás alternatívája (a beállításokban
-    // felcserélhető). Ha mindkettő be van kapcsolva, három fillWidth elem osztozik
-    // a szabad helyen kettő helyett, és a pill a különbség arányában elcsúszik.
-    readonly property real fixedBeforeMiniDash: fixedWidthAround(true)
-    readonly property real fixedAfterMiniDash: fixedWidthAround(false)
+    // A fillWidth spacerek és maga a középső elem nem számítanak bele. A középső
+    // elem kihagyása nem csak elvi: az aktív ablak szélessége a címből jön, a cím a
+    // maxWidth-ből, a maxWidth a többi elem szélességéből — ha ez visszahatna a
+    // margóra, kötés-hurok lenne belőle.
+    readonly property real centrePadLeft: Math.max(0, fixedWidthAround(false) - fixedWidthAround(true))
+    readonly property real centrePadRight: Math.max(0, fixedWidthAround(true) - fixedWidthAround(false))
 
     function fixedWidthAround(before: bool): real {
-        let seenMiniDash = false;
+        let seenCentre = false;
         let sum = 0;
         for (let i = 0; i < repeater.count; i++) {
             const entry = repeater.itemAt(i) as EntryWrapper;
             const id = entry?.modelData?.id;
-            if (id === "miniDash") {
-                seenMiniDash = true;
+            if (id === root.centreEntry) {
+                seenCentre = true;
                 continue;
             }
-            if (!entry || id === "spacer" || id === "activeWindow")
+            if (!entry || id === "spacer")
                 continue;
-            if (before === !seenMiniDash)
+            if (before === !seenCentre)
                 sum += entry.implicitWidth;
         }
         return sum;
@@ -216,9 +218,10 @@ RowLayout {
         id: repeater
 
         model: ScriptModel {
-            // [fork] A "miniDash" bejegyzést a fork saját kapcsolója is kapuzza,
-            // hogy egyetlen, jól látható ki/be váltó legyen a beállításokban.
-            values: root.Config.bar.entries.filter(e => (e.enabled ?? true) && (e.id !== "miniDash" || ExtrasConfig.miniDash))
+            // [fork] A középső sávban egyszerre egy elem lehet: a MiniDash kapcsolója
+            // dönt, és bekapcsolva kiszorítja az aktív ablak címét. Így nem verseng a
+            // két elem ugyanazért a helyért, és a középre igazítás egzakt marad.
+            values: root.Config.bar.entries.filter(e => (e.enabled ?? true) && (e.id !== "miniDash" || root.centreEntry === "miniDash") && (e.id !== "activeWindow" || root.centreEntry === "activeWindow"))
         }
 
         DelegateChooser {
@@ -251,7 +254,13 @@ RowLayout {
             DelegateChoice {
                 roleValue: "activeWindow"
                 delegate: EntryWrapper {
-                    Layout.fillWidth: true // [fork]
+                    // [fork] Középre igazítva, mint a MiniDash — upstreamben itt
+                    // fillWidth van, ami balra tolja a címet a rendelkezésre álló
+                    // sávban. A középső slotban ez az elem fix szélességű, a
+                    // hosszú címet a HActiveWindow maxWidth-je rövidíti.
+                    Layout.leftMargin: root.centrePadLeft
+                    Layout.rightMargin: root.centrePadRight
+
                     HActiveWindow {
                         objectName: "taskbarActiveWindow"
                         bar: root
@@ -260,16 +269,12 @@ RowLayout {
                 }
             }
             // [fork] A MiniDash pill. Csak a vízszintes barnak van rá delegate-je;
-            // az upstream vertikális Bar.qml-ben a DelegateChooser nem talál
-            // egyezést, ezért ott nem jön létre elem, és a bejegyzés nem foglal
-            // helyet.
+            // a vertikális Bar.qml kiszűri a listából, mert ott nincs.
             DelegateChoice {
                 roleValue: "miniDash"
                 delegate: EntryWrapper {
-                    // A könnyebb oldal megkapja a fix súlyok különbségét, így a
-                    // pill a képernyő közepére kerül — lásd fixedWidthAround().
-                    Layout.leftMargin: Math.max(0, root.fixedAfterMiniDash - root.fixedBeforeMiniDash)
-                    Layout.rightMargin: Math.max(0, root.fixedBeforeMiniDash - root.fixedAfterMiniDash)
+                    Layout.leftMargin: root.centrePadLeft
+                    Layout.rightMargin: root.centrePadRight
 
                     MiniDash {
                         objectName: "taskbarMiniDash"

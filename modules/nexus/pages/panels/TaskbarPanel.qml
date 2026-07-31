@@ -57,21 +57,19 @@ PageBase {
             onToggled: ExtrasConfig.setValue("bar", "islands", checked)
         }
 
-        // [fork] Az aktív ablak és a MiniDash ugyanazt a középső sávot kapja, ezért
-        // egymás alternatívái — mindkettő külön kapcsolható.
+        // [fork] A középső sávban egyszerre egy elem lehet, ezért a MiniDash
+        // kapcsolója dönti el, melyik: bekapcsolva kiszorítja az aktív ablak címét.
         ToggleRow {
             text: qsTr("Active window title")
-            subtext: qsTr("Show the focused window's icon and title in the centre of the bar")
+            subtext: qsTr("Show the focused window's icon and title in the centre of the bar. The mini dashboard takes this slot when enabled.")
             checked: root.entryEnabled("activeWindow")
             onToggled: root.setEntryEnabled("activeWindow", checked)
         }
 
-        // [fork] A MiniDash rendes bar-elem (Config.bar.entries → "miniDash"),
-        // a sorrendje ott állítható; ez a mesterkapcsoló.
         ToggleRow {
             last: true
             text: qsTr("Mini dashboard")
-            subtext: qsTr("System metrics and media controls as a pill in the bar. Horizontal bar only.")
+            subtext: qsTr("System metrics and media controls as a pill, replacing the active window title in the centre. Horizontal bar only.")
             checked: ExtrasConfig.miniDash
             onToggled: ExtrasConfig.setValue("miniDash", "enabled", checked)
         }
