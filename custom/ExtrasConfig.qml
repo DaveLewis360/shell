@@ -44,36 +44,37 @@ Singleton {
     readonly property bool liquidStyle: appearanceStyle === "liquid"
 
     // ── Bar háttér: szigetes vagy folyamatos ─────────────────────────────
-    // true  = szigetek: külön lekerekített blokkok, köztük átlátszó réssel
     // false = folyamatos: a bar a megvastagított képernyő-keret része, egyetlen
-    //         felületet alkotva a panelekkel (upstream viselkedés)
+    //         felületet alkotva a panelekkel. EZ AZ UPSTREAM MEGJELENÉS — ha csak
+    //         a vízszintes váltót kapcsolod be, a bar pontosan úgy néz ki, mint az
+    //         eredeti caelestiáé, csak vízszintesen.
+    // true  = szigetek: külön lekerekített blokkok, köztük átlátszó réssel. Ez a
+    //         fork saját megjelenése, nem upstream viselkedés.
     //
     // Ez korábban NEM volt külön beállítás: a vízszintes/vertikális váltó
-    // döntötte el mellékhatásként. Ha a kulcs nincs a fájlban, a megjelenési
-    // stílusból következik (liquid → folyamatos, floating → szigetek) — így egy
-    // friss config magától értelmes, és amint hozzányúlsz, kifejezetté válik.
-    // A stílus-váltó a beállításokban ezt a kulcsot presetként át is írja.
+    // döntötte el mellékhatásként, és mindig szigetes lett.
     //
     // Vertikális módban csak a folyamatos létezik: a sziget-geometria a vízszintes
     // bar elemeire épül (lásd HBar.rightPartX), ezért ott a kérés akkor is
     // folyamatosra oldódik fel, ha itt true szerepel.
-    readonly property bool barIslands: data.bar?.islands ?? !liquidStyle
+    readonly property bool barIslands: data.bar?.islands ?? false
 
     // ── MiniDash ─────────────────────────────────────────────────────────
     // A pill rendes bar-elem (Config.bar.entries → "miniDash"); ez a mesterkapcsoló.
-    readonly property bool miniDash: data.miniDash?.enabled ?? true
+    // Alapból KI, mert az upstream barban nincs ilyen — bekapcsolva a fork extrája.
+    readonly property bool miniDash: data.miniDash?.enabled ?? false
 
     // Alapértékek, ha a fájl még nem létezik vagy hibás
     readonly property var defaults: ({
             bar: {
                 horizontal: false,
-                islands: true
+                islands: false
             },
             appearance: {
                 style: "floating"
             },
             miniDash: {
-                enabled: true
+                enabled: false
             }
         })
 

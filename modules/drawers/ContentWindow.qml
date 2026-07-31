@@ -268,20 +268,13 @@ StyledWindow {
             panel: panels.popoutsWrapper
         }
 
-        // [fork] A szigetes bar-háttér két blokkja. Csak szigetes módban látszanak;
-        // folyamatos módban a képernyő-keret nyúlik be a bar alá helyettük.
-        Rectangle {
-            id: workspacesBg
-
-            visible: root.barIslands && bar.workspacesWidth > 0
-            x: bar.workspacesX
-            y: bar.y + (bar.implicitHeight - implicitHeight) / 2
-            implicitWidth: bar.workspacesWidth
-            implicitHeight: Tokens.sizes.bar.innerWidth
-            radius: Tokens.rounding.full
-            color: Qt.alpha(root.surfaceColour, 1)
-        }
-
+        // [fork] A szigetes bar-háttér. Csak szigetes módban látszik; folyamatos
+        // módban a képernyő-keret nyúlik be a bar alá helyette.
+        //
+        // A workspaces alatti külön téglalap innen KIKERÜLT: a workspace-jelző
+        // upstreamben maga festi a saját hátterét (m3surfaceContainer), és amíg
+        // ide is került egy m3surface téglalap, a kettő egybeolvadt és a jelző
+        // eltűnt. Lásd custom/bar/HWorkspaces.qml.
         Rectangle {
             id: barBg
 

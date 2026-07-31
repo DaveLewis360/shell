@@ -43,7 +43,13 @@ StyledClippingRect {
         Anim {}
     }
 
-    color: "transparent"
+    // [fork] Upstream: Colours.tPalette.m3surfaceContainer. Ez korábban
+    // "transparent"-re volt állítva, és helyette a ContentWindow festett alá egy
+    // sziget-téglalapot — csakhogy az a bar felületének SZÍNÉVEL (m3surface),
+    // ezért a workspace-jelző háttere pontosan egybeolvadt a sáv hátterével, és
+    // a jelző eltűnt. Upstreamben a pill maga festi magát, egy fokkal világosabb
+    // m3surfaceContainer színnel — ezért látszik. Visszaállítva.
+    color: Colours.tPalette.m3surfaceContainer
 
     radius: Tokens.rounding.full
 

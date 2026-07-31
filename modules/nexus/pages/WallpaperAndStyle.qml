@@ -188,14 +188,14 @@ PageBase {
             onToggled: {
                 ExtrasConfig.setValue("appearance", "style", checked ? "liquid" : "floating");
 
-                // A két stílushoz más háttér tartozik, ezért a váltó presetként
-                // átállítja azokat is. Mindkettő külön felülírható utána — csak a
-                // kiindulást adja meg, nem kötés.
-                //   liquid   → tömör felület, hogy az összeolvadás olvasható legyen,
-                //              és folyamatos bar-háttér (a bar a keret része)
-                //   floating → átlátszó, iOS-szerű megjelenés, szigetes bar-háttér
+                // A két stílushoz más háttér tartozik, ezért a váltó presetként az
+                // átlátszóságot is átállítja — utána külön felülírható.
+                //   liquid   → tömör felület, hogy az összeolvadás olvasható legyen
+                //   floating → átlátszó, iOS-szerű megjelenés
+                //
+                // A bar sziget-hátterét NEM állítja: az a fork saját extrája, nem a
+                // stílus következménye, és upstreamben nem is létezik.
                 GlobalConfig.appearance.transparency.enabled = !checked;
-                ExtrasConfig.setValue("bar", "islands", !checked);
             }
         }
 

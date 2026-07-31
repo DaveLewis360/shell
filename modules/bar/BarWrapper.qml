@@ -35,10 +35,8 @@ Item {
     // használjuk mindkét irányban, csak más tengelyen.
     readonly property int clampedHeight: Math.max(Config.border.minThickness, implicitHeight)
 
-    // [fork] Csak a vízszintes bar szolgáltatja (a MiniDash pozicionálásához)
+    // [fork] Csak a vízszintes bar szolgáltatja (a sziget-háttér geometriájához)
     readonly property real rightPartX: (content.item as HBar)?.rightPartX ?? (width / 2)
-    readonly property real workspacesX: (content.item as HBar)?.workspacesX ?? 0
-    readonly property real workspacesWidth: (content.item as HBar)?.workspacesWidth ?? 0
     readonly property int hPadding: (content.item as HBar)?.hPadding ?? padding
 
     // Mindkét változat ugyanezt a három függvényt kínálja. A hívó dönti el, hogy

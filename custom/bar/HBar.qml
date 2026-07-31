@@ -36,7 +36,7 @@ RowLayout {
     readonly property int hPadding: Tokens.padding.large
 
     // [fork] A sziget-háttér geometriájához: hol végződik a bal oldali rész (az
-    // első fillWidth elem után), és hol van a workspaces blokk.
+    // első fillWidth elem után).
     property real rightPartX: {
         let xVal = width; // ha nincs fillWidth elem, a jobb szél
         for (let i = repeater.count - 1; i >= 0; i--) {
@@ -52,22 +52,36 @@ RowLayout {
         return xVal;
     }
 
-    property real workspacesX: {
-        for (let i = 0; i < repeater.count; i++) {
-            const entry = repeater.itemAt(i) as EntryWrapper;
-            if (entry?.modelData?.id === "workspaces")
-                return entry.x;
-        }
-        return 0;
-    }
+    // [fork] A MiniDash vízszintes középre igazítása.
+    //
+    // A RowLayout a szabad helyet a fillWidth elemek között egyenlően osztja, ezért
+    // a pill pontosan annyival csúszik el a képernyő közepétől, amennyivel a tőle
+    // jobbra lévő fix tartalom nehezebb a bal oldalinál — a különbség FELÉVEL. Ha a
+    // könnyebb oldalra visszaadjuk a teljes különbséget margóként, a két oldal fix
+    // súlya kiegyenlítődik, és a pill középre kerül.
+    //
+    // A spacer nem számít bele (nincs saját szélessége), az activeWindow-nál pedig
+    // az implicitWidth-et vesszük: az azon felüli rész a szabad helyből jön, tehát
+    // ugyanúgy oszlik, mint a spacereké.
+    readonly property real fixedBeforeMiniDash: fixedWidthAround(true)
+    readonly property real fixedAfterMiniDash: fixedWidthAround(false)
 
-    property real workspacesWidth: {
+    function fixedWidthAround(before: bool): real {
+        let seenMiniDash = false;
+        let sum = 0;
         for (let i = 0; i < repeater.count; i++) {
             const entry = repeater.itemAt(i) as EntryWrapper;
-            if (entry?.modelData?.id === "workspaces")
-                return entry.width;
+            const id = entry?.modelData?.id;
+            if (id === "miniDash") {
+                seenMiniDash = true;
+                continue;
+            }
+            if (!entry || id === "spacer")
+                continue;
+            if (before === !seenMiniDash)
+                sum += entry.implicitWidth;
         }
-        return 0;
+        return sum;
     }
 
     function closeTray(): void {
@@ -215,9 +229,25 @@ RowLayout {
             DelegateChoice {
                 roleValue: "miniDash"
                 delegate: EntryWrapper {
+                    // A könnyebb oldal megkapja a fix súlyok különbségét, így a
+                    // pill a képernyő közepére kerül — lásd fixedWidthAround().
+                    Layout.leftMargin: Math.max(0, root.fixedAfterMiniDash - root.fixedBeforeMiniDash)
+                    Layout.rightMargin: Math.max(0, root.fixedBeforeMiniDash - root.fixedAfterMiniDash)
+
                     MiniDash {
                         objectName: "taskbarMiniDash"
                         screenState: root.screenState
+                    }
+                }
+            }
+            // [fork] A homelab allapot-jelzo. Sajat komponens (custom/HomelabStatus.qml),
+            // az adatot a HomelabService adja egy JSON vegpontrol. Ugyanaz a logika,
+            // mint a miniDash-nel: csak a vizszintes barnak van delegate-je.
+            DelegateChoice {
+                roleValue: "homelab"
+                delegate: EntryWrapper {
+                    HomelabStatus {
+                        objectName: "taskbarHomelab"
                     }
                 }
             }
