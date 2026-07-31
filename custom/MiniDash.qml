@@ -16,8 +16,6 @@ import qs.services
 Item {
     id: root
 
-    objectName: "miniDash"
-
     required property ScreenState screenState
 
     readonly property bool hasMedia: !!Players.active && Players.active.trackTitle.length > 0
@@ -31,6 +29,12 @@ Item {
 
     readonly property real pillWidth: Math.max(systemWidth, mediaWidth) + Tokens.padding.large * 2
 
+    // A pill elbújik, amíg a dashboard nyitva van — a kettő ugyanazt az
+    // információt mutatja, csak más méretben.
+    readonly property bool dashOpen: root.screenState.dashboard
+
+    objectName: "miniDash"
+
     // [fork] Rendes bar-elemként a MiniDash-nek saját implicit magassága kell,
     // hogy az EntryWrapper méretezni tudja. Korábban `height: parent.height` volt,
     // ami a layoutban körkörös kötést adott volna (a wrapper magassága éppen az
@@ -38,6 +42,39 @@ Item {
     // ugyanez adja a workspaces pill magasságát is.
     implicitWidth: pillWidth
     implicitHeight: Tokens.sizes.bar.innerWidth
+
+    enabled: !dashOpen
+    opacity: dashOpen ? 0 : 1
+    scale: dashOpen ? 0.85 : 1
+
+    transform: Translate {
+        y: root.dashOpen ? -15 : 0
+
+        Behavior on y {
+            Anim {
+                type: Anim.DefaultSpatial
+            }
+        }
+    }
+
+    // Auto-switch to media page when music starts playing
+    onIsPlayingChanged: {
+        if (isPlaying && hasMedia) {
+            view.currentIndex = 1; // Media page
+        }
+    }
+
+    Behavior on opacity {
+        Anim {
+            type: Anim.DefaultSpatial
+        }
+    }
+
+    Behavior on scale {
+        Anim {
+            type: Anim.DefaultSpatial
+        }
+    }
 
     ServiceRef {
         service: Audio.cava
@@ -54,13 +91,6 @@ Item {
     }
     ServiceRef {
         service: Gpu
-    }
-
-    // Auto-switch to media page when music starts playing
-    onIsPlayingChanged: {
-        if (isPlaying && hasMedia) {
-            view.currentIndex = 1; // Media page
-        }
     }
 
     StyledRect {
@@ -402,37 +432,6 @@ Item {
             text: btn.icon
             fontStyle.pointSize: 20
             color: Colours.palette.m3onSurface
-        }
-    }
-
-    // Fixed animations for open/close
-    readonly property bool dashOpen: root.screenState.dashboard
-
-    enabled: !dashOpen
-
-    opacity: dashOpen ? 0 : 1
-
-    scale: dashOpen ? 0.85 : 1
-
-    transform: Translate {
-        y: dashOpen ? -15 : 0
-
-        Behavior on y {
-            Anim {
-                type: Anim.DefaultSpatial
-            }
-        }
-    }
-
-    Behavior on opacity {
-        Anim {
-            type: Anim.DefaultSpatial
-        }
-    }
-
-    Behavior on scale {
-        Anim {
-            type: Anim.DefaultSpatial
         }
     }
 }
