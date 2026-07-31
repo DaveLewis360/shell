@@ -115,9 +115,11 @@ Item {
 
         color: ExtrasConfig.barIslands ? "transparent" : Colours.tPalette.m3surfaceContainer
 
-        // A nagy dashboardhoz igazodik: a PanelBg is Tokens.rounding.extraLarge-ot
-        // használ, így a pill és a kinyíló dashboard formája egy nyelvet beszél.
-        radius: Tokens.rounding.extraLarge
+        // A dashboard extraLarge (28) rádiuszt használ, de az egy nagy panelen
+        // arányos — egy ~40 px magas pillen ugyanaz már majdnem kapszula, és
+        // túl hangosan szól. A `large` (16) ugyanabból a skálából jön, csak a
+        // méretünkhöz illő fokon.
+        radius: Tokens.rounding.large
 
         // Swipe View for Pages
         // [fork] Kompakt vertikális tartalom. Egy ~40 px széles sávban a metrika

@@ -51,7 +51,7 @@ ColumnLayout {
                 pos: entry.y,
                 len: entry.height,
                 thick: entry.width,
-                r: id === "workspaces" ? Tokens.rounding.full : Tokens.rounding.extraLarge
+                r: id === "workspaces" ? Tokens.rounding.full : Tokens.rounding.large
             });
         }
         return out;

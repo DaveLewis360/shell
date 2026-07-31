@@ -81,7 +81,7 @@ RowLayout {
                 // A középső elem a dashboard lekerekítését követi (Tokens.rounding
                 // .extraLarge — ugyanaz, amit a PanelBg használ), a workspaces
                 // jelző viszont kapszula marad, mert upstreamben is az.
-                r: id === "workspaces" ? Tokens.rounding.full : Tokens.rounding.extraLarge
+                r: id === "workspaces" ? Tokens.rounding.full : Tokens.rounding.large
             });
         }
         return out;
