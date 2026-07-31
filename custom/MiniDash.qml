@@ -24,8 +24,6 @@ Item {
 
     readonly property bool isPlaying: Players.active?.isPlaying ?? false
 
-    readonly property int barPadding: Math.max(Tokens.padding.smaller, Config.border.thickness)
-
     // Dynamic width calculation based on the widest content
     readonly property real systemWidth: systemLayout.implicitWidth
 
@@ -33,11 +31,13 @@ Item {
 
     readonly property real pillWidth: Math.max(systemWidth, mediaWidth) + Tokens.padding.large * 2
 
+    // [fork] Rendes bar-elemként a MiniDash-nek saját implicit magassága kell,
+    // hogy az EntryWrapper méretezni tudja. Korábban `height: parent.height` volt,
+    // ami a layoutban körkörös kötést adott volna (a wrapper magassága éppen az
+    // elem implicitHeight-jából jön). A bar szokásos belső mérete a helyes érték —
+    // ugyanez adja a workspaces pill magasságát is.
     implicitWidth: pillWidth
-    height: parent.height
-
-    Component.onCompleted: {}
-    Component.onDestruction: {}
+    implicitHeight: Tokens.sizes.bar.innerWidth
 
     ServiceRef {
         service: Audio.cava
@@ -66,9 +66,10 @@ Item {
     StyledRect {
         id: bg
 
+        // [fork] Korábban a pill a bar teteje fölé nyúlt (-barPadding), amit a
+        // BarWrapper clip-je le is vágott. Rendes bar-elemként pontosan a saját
+        // helyét tölti ki.
         anchors.fill: parent
-        anchors.topMargin: -root.barPadding
-        anchors.bottomMargin: 0
 
         color: Colours.tPalette.m3surface
 

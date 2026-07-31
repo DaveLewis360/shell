@@ -143,6 +143,14 @@ class BarConfig : public ConfigObject {
             vmap({ { u"id"_s, u"workspaces"_s }, { u"enabled"_s, true } }),
             vmap({ { u"id"_s, u"spacer"_s }, { u"enabled"_s, true } }),
             vmap({ { u"id"_s, u"activeWindow"_s }, { u"enabled"_s, true } }),
+            // [fork] The MiniDash pill is a normal bar entry, so it takes a slot
+            // in the layout instead of floating over one. Only the horizontal bar
+            // (custom/bar/HBar.qml) has a delegate for it; the vertical bar has
+            // none, so DelegateChooser creates nothing there and the entry costs
+            // no space. Placed after activeWindow so the two fillWidth items on
+            // either side land it near the centre, matching where it used to be
+            // anchored — reorder this list to move it.
+            vmap({ { u"id"_s, u"miniDash"_s }, { u"enabled"_s, true } }),
             vmap({ { u"id"_s, u"spacer"_s }, { u"enabled"_s, true } }),
             vmap({ { u"id"_s, u"tray"_s }, { u"enabled"_s, true } }),
             vmap({ { u"id"_s, u"clock"_s }, { u"enabled"_s, true } }),

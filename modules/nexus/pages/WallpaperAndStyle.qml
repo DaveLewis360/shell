@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 
+import qs.custom
 import QtQuick
 import QtQuick.Layouts
 import Caelestia.Components
@@ -175,6 +176,27 @@ PageBase {
             text: qsTr("Display wallpaper")
             checked: Config.background.wallpaperEnabled
             onToggled: GlobalConfig.background.wallpaperEnabled = checked
+        }
+
+        // [fork] Megjelenési stílus. Az egész shell felületére hat, nem csak a barra.
+        ToggleRow {
+            Layout.topMargin: Tokens.spacing.extraSmall / 2 - parent.spacing
+
+            text: qsTr("Liquid surfaces")
+            subtext: qsTr("Panels merge with the screen border and with each other, and flex as they move. Off: separate flat floating panels.")
+            checked: ExtrasConfig.liquidStyle
+            onToggled: {
+                ExtrasConfig.setValue("appearance", "style", checked ? "liquid" : "floating");
+
+                // A két stílushoz más háttér tartozik, ezért a váltó presetként
+                // átállítja azokat is. Mindkettő külön felülírható utána — csak a
+                // kiindulást adja meg, nem kötés.
+                //   liquid   → tömör felület, hogy az összeolvadás olvasható legyen,
+                //              és folyamatos bar-háttér (a bar a keret része)
+                //   floating → átlátszó, iOS-szerű megjelenés, szigetes bar-háttér
+                GlobalConfig.appearance.transparency.enabled = !checked;
+                ExtrasConfig.setValue("bar", "islands", !checked);
+            }
         }
 
         ToggleRow {

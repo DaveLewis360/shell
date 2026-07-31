@@ -10,6 +10,7 @@ import Caelestia.Blobs
 import Caelestia.Config
 import qs.components
 import qs.components.containers
+import qs.custom
 import qs.services
 import qs.modules.bar
 
@@ -43,6 +44,22 @@ StyledWindow {
     readonly property real borderLayoutThickness: hasFullscreen ? 0 : contentItem.Config.border.thickness
 
     property color surfaceColour: Colours.tPalette.m3surface
+
+    // [fork] Megjelenési stílus. Liquid módban a panelek háttere BlobRect, ami
+    // belép a blobGroup SDF-mezőjébe: összeolvad a képernyő keretével és a
+    // szomszédos panelekkel, és mozgás közben rugósan deformálódik. Floating
+    // módban egyszerű Rectangle — kemény szélű, önálló panel. Lásd a PanelBg
+    // komponenst a fájl alján.
+    readonly property bool liquidStyle: ExtrasConfig.liquidStyle
+
+    // [fork] Szigetes bar-háttér. Korábban ezt a vízszintes/vertikális váltó
+    // döntötte el mellékhatásként; most külön beállítás, ami alapból a stílust
+    // követi (liquid → folyamatos, floating → szigetek).
+    //
+    // A sziget-geometria a vízszintes bar elemeire épül (HBar.rightPartX /
+    // workspacesX), ezért vertikális módban nem értelmezett — ott a bar mindig a
+    // megvastagított képernyő-keret része, vagyis folyamatos.
+    readonly property bool barIslands: bar.horizontal && ExtrasConfig.barIslands
 
     readonly property int dragMaskPadding: {
         if (focusGrab.active || panels.popouts.isDetached)
@@ -170,9 +187,18 @@ StyledWindow {
             anchors.margins: -50 // Make border thicker to smooth out bulge from closed drawers
             group: blobGroup
             radius: root.borderRounding
+
+            // [fork] Folyamatos módban a bar a képernyő-keret helyi
+            // megvastagítása: vertikálisan a bal, vízszintesen a felső él nyúlik
+            // be a bar teljes vastagságáig, így a bar és a panelek egyetlen
+            // felületet alkotnak. Szigetes módban a keret vékony marad, és a bar
+            // hátterét a workspacesBg/barBg blokkok adják.
+            //
+            // Korábban a felső él SOHA nem nyúlt be, ezért vízszintes bar mellett
+            // csak a szigetes megjelenés létezett.
             borderLeft: (bar.horizontal ? root.borderThickness : bar.implicitWidth) - anchors.margins - root.sdfBorderOffset
             borderRight: root.borderThickness - anchors.margins - root.sdfBorderOffset
-            borderTop: root.borderThickness - anchors.margins - root.sdfBorderOffset
+            borderTop: (bar.horizontal && !root.barIslands ? bar.implicitHeight : root.borderThickness) - anchors.margins - root.sdfBorderOffset
             borderBottom: root.borderThickness - anchors.margins - root.sdfBorderOffset
         }
 
@@ -201,7 +227,17 @@ StyledWindow {
             id: sidebarBg
 
             panel: panels.sidebar
-            implicitHeight: panel.height + 2
+            extraHeight: 2
+            deformAmount: 0.03
+
+            // [fork] Liquid módban a sidebar és az utilities csak akkor olvadhat
+            // össze, ha a sidebar már láthatóan kinyílt; csukott állapotban külön
+            // kell maradniuk, különben a kettő egy formátlan tömbbé folyik. A
+            // sarok pedig a kinyílással együtt kerekedik le. Mindkettő upstream
+            // viselkedés, amit a BlobRect elhagyásával elveszett — floating
+            // módban egyszerűen nincs hatása.
+            excludeBgs: panels.sidebar.offsetScale > 0.08 ? [] : [utilsBg]
+            cornerBottomLeft: Math.max(0, Math.min(1, panels.sidebar.offsetScale / 0.3)) * sidebarBg.cornerRadius
         }
 
         PanelBg {
@@ -221,6 +257,9 @@ StyledWindow {
             id: utilsBg
 
             panel: panels.utilities
+            deformAmount: panels.sidebar.visible ? 0.1 : 0.15
+            excludeBgs: panels.sidebar.offsetScale > 0.08 ? [] : [sidebarBg]
+            cornerTopLeft: Math.max(0, Math.min(1, panels.sidebar.offsetScale / 0.3)) * utilsBg.cornerRadius
         }
 
         PanelBg {
@@ -229,10 +268,12 @@ StyledWindow {
             panel: panels.popoutsWrapper
         }
 
+        // [fork] A szigetes bar-háttér két blokkja. Csak szigetes módban látszanak;
+        // folyamatos módban a képernyő-keret nyúlik be a bar alá helyettük.
         Rectangle {
             id: workspacesBg
 
-            visible: bar.horizontal && bar.workspacesWidth > 0
+            visible: root.barIslands && bar.workspacesWidth > 0
             x: bar.workspacesX
             y: bar.y + (bar.implicitHeight - implicitHeight) / 2
             implicitWidth: bar.workspacesWidth
@@ -244,7 +285,7 @@ StyledWindow {
         Rectangle {
             id: barBg
 
-            visible: bar.horizontal
+            visible: root.barIslands
             x: bar.rightPartX
             y: bar.y
             implicitWidth: bar.width - bar.rightPartX
@@ -320,18 +361,78 @@ StyledWindow {
         component: panels
     }
 
-    // [fork] Rectangle a BlobRect helyett (a vízszintes bar geometriájához)
-    component PanelBg: Rectangle {
+    // [fork] A panelek háttere. A megjelenési stílus dönti el, MI rajzolja:
+    //
+    //   liquid   → BlobRect, ami belép a blobGroup SDF-mezőjébe. A panelek
+    //              összeolvadnak egymással és a képernyő keretével (a
+    //              border.smoothing szerint), és mozgás közben rugósan
+    //              deformálódnak. Ez az upstream viselkedés.
+    //   floating → egyszerű Rectangle: kemény szélű, önálló panel. Ez a fork
+    //              eddigi és továbbra is alapértelmezett megjelenése.
+    //
+    // Miért Loader és nem egyetlen típus: a BlobRect a színt a csoporttól kapja
+    // (a BlobShape-nek nincs is color property-je), a Rectangle viszont maga
+    // festi magát — a kettő nem hozható egy típus alá. A wrapper Item mindkét
+    // esetben ugyanazt a geometriát és láthatóságot adja, így a nyolc hívási hely
+    // nem tud a különbségről.
+    //
+    // A `visible`/`opacity` a wrapperen van: egy nulla hozzájárulású blob eleve
+    // láthatatlan, egy Rectangle viszont kirajzolná magát, ezért ezt nem lehet a
+    // belső elemre bízni.
+    component PanelBg: Item {
+        id: bg
+
         required property Item panel
         property real deformAmount: 0.15
+        property real cornerRadius: Tokens.rounding.extraLarge
+        property real extraHeight: 0
 
-        color: Qt.alpha(root.surfaceColour, 1)
+        // Liquid módban ezekkel a panelekkel NEM olvadhat össze. Wrappereket vár,
+        // és a BlobRect-jeiket szedi ki belőlük — az exclude lista BlobRect
+        // példányokat kíván, nem wrappereket.
+        property var excludeBgs: []
+
+        // Sarok-rádiusz felülírás liquid módban; -1 = a cornerRadius érvényes
+        // (ez a BlobRect saját neutrális értéke).
+        property real cornerTopLeft: -1
+        property real cornerBottomLeft: -1
+
+        readonly property BlobRect blob: bgLoader.item as BlobRect
+
         x: panel.x + (bar.horizontal ? root.borderThickness : bar.implicitWidth)
         y: panel.y + (bar.horizontal ? bar.implicitHeight : root.borderThickness)
         implicitWidth: panel.width
-        implicitHeight: panel.height
-        radius: Tokens.rounding.extraLarge
+        implicitHeight: panel.height + extraHeight
         visible: panel.visible
         opacity: panel.opacity !== undefined ? panel.opacity : 1
+
+        Loader {
+            id: bgLoader
+
+            anchors.fill: parent
+            sourceComponent: root.liquidStyle ? liquidBg : flatBg
+        }
+
+        Component {
+            id: liquidBg
+
+            BlobRect {
+                group: blobGroup
+                radius: bg.cornerRadius
+                topLeftRadius: bg.cornerTopLeft
+                bottomLeftRadius: bg.cornerBottomLeft
+                deformScale: (bg.deformAmount * bg.Config.appearance.deformScale) / 10000
+                exclude: bg.excludeBgs.map(w => w.blob).filter(b => !!b)
+            }
+        }
+
+        Component {
+            id: flatBg
+
+            Rectangle {
+                radius: bg.cornerRadius
+                color: Qt.alpha(root.surfaceColour, 1)
+            }
+        }
     }
 }

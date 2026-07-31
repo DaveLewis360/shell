@@ -11,9 +11,20 @@ import qs.components
 import qs.services
 import qs.modules.bar.popouts as BarPopouts
 
-// [fork] Az upstream root-ja közvetlenül egy ColumnLayout. Nálunk Item, amiben
-// a RowLayout ül — így a MiniDash a bar mellé, a képernyő tetejére horgonyozható.
-Item {
+// [fork] A vízszintes bar. Az upstream Bar.qml gyökere egy ColumnLayout; ez a
+// tükörképe, RowLayout-tal.
+//
+// Korábban a gyökér egy Item volt, amiben a RowLayout ült, hogy a MiniDash a bar
+// tetejére horgonyozható legyen. Ez két hibát okozott:
+//   * a MiniDash a layout SIBLINGJE volt, ezért a layout nem tartalékolt neki
+//     helyet, és a pill rárajzolt az alatta lévő elemre (jellemzően az aktív
+//     ablak címére), a találat-keresés pedig az alatta lévő elemet találta meg;
+//   * a HActiveWindow szélesség-számítása az upstreamből jött, ahol a `bar` MAGA
+//     a layout — egy Itemnek viszont nincs `spacing`-je, így a számítás NaN-t
+//     adott, amit az `int` property 0-ra alakított, és a cím elveszett.
+// A MiniDash mostantól rendes bar-elem (Config.bar.entries → "miniDash"), ezért a
+// wrapper Itemre nincs többé szükség, és mindkét hiba szerkezetileg megszűnik.
+RowLayout {
     id: root
 
     required property ShellScreen screen
@@ -24,8 +35,8 @@ Item {
     // [fork] upstream: vPadding (a bar függőleges, ott a padding fent/lent van)
     readonly property int hPadding: Tokens.padding.large
 
-    // [fork] A MiniDash pozicionálásához kell tudni, hol végződik a bal oldali
-    // rész (az első fillWidth elem után), és hol van a workspaces blokk.
+    // [fork] A sziget-háttér geometriájához: hol végződik a bal oldali rész (az
+    // első fillWidth elem után), és hol van a workspaces blokk.
     property real rightPartX: {
         let xVal = width; // ha nincs fillWidth elem, a jobb szél
         for (let i = repeater.count - 1; i >= 0; i--) {
@@ -73,7 +84,7 @@ Item {
     // [fork] Vízszintes bar: a találatot x mentén keressük, a popout középpontja
     // is x koordináta (upstreamben y).
     function checkPopout(x: real): void {
-        const ch = layout.childAt(x, layout.height / 2) as EntryWrapper;
+        const ch = childAt(x, height / 2) as EntryWrapper;
 
         if (ch?.entryId !== "tray")
             closeTray();
@@ -123,7 +134,7 @@ Item {
 
     // [fork] Vízszintes bar: a hangerő/fényerő felezés x mentén történik.
     function handleWheel(x: real, angleDelta: point): void {
-        const ch = layout.childAt(x, layout.height / 2) as EntryWrapper;
+        const ch = childAt(x, height / 2) as EntryWrapper;
         if (ch?.entryId === "workspaces" && Config.bar.scrollActions.workspaces) {
             // Workspace scroll
             const mon = (GlobalConfig.bar.workspaces.perMonitorWorkspaces ? Hypr.monitorFor(screen) : Hypr.focusedMonitor);
@@ -148,89 +159,98 @@ Item {
         }
     }
 
-    // [fork] RowLayout az upstream ColumnLayout helyett
-    RowLayout {
-        id: layout
+    spacing: Tokens.spacing.medium
 
-        anchors.fill: parent
-        spacing: Tokens.spacing.medium
+    Repeater {
+        id: repeater
 
-        Repeater {
-            id: repeater
+        model: ScriptModel {
+            // [fork] A "miniDash" bejegyzést a fork saját kapcsolója is kapuzza,
+            // hogy egyetlen, jól látható ki/be váltó legyen a beállításokban.
+            values: root.Config.bar.entries.filter(e => (e.enabled ?? true) && (e.id !== "miniDash" || ExtrasConfig.miniDash))
+        }
 
-            model: ScriptModel {
-                values: root.Config.bar.entries.filter(e => e.enabled ?? true)
+        DelegateChooser {
+            role: "id"
+
+            DelegateChoice {
+                roleValue: "spacer"
+                delegate: EntryWrapper {
+                    Layout.fillWidth: true // [fork] upstream: fillHeight
+                }
             }
-
-            DelegateChooser {
-                role: "id"
-
-                DelegateChoice {
-                    roleValue: "spacer"
-                    delegate: EntryWrapper {
-                        Layout.fillWidth: true // [fork] upstream: fillHeight
+            DelegateChoice {
+                roleValue: "logo"
+                delegate: EntryWrapper {
+                    OsIcon {
+                        objectName: "taskbarLogo"
                     }
                 }
-                DelegateChoice {
-                    roleValue: "logo"
-                    delegate: EntryWrapper {
-                        OsIcon {
-                            objectName: "taskbarLogo"
-                        }
+            }
+            DelegateChoice {
+                roleValue: "workspaces"
+                delegate: EntryWrapper {
+                    HWorkspaces {
+                        objectName: "taskbarWorkspaces"
+                        screen: root.screen
+                        fullscreen: root.fullscreen
                     }
                 }
-                DelegateChoice {
-                    roleValue: "workspaces"
-                    delegate: EntryWrapper {
-                        HWorkspaces {
-                            objectName: "taskbarWorkspaces"
-                            screen: root.screen
-                            fullscreen: root.fullscreen
-                        }
+            }
+            DelegateChoice {
+                roleValue: "activeWindow"
+                delegate: EntryWrapper {
+                    Layout.fillWidth: true // [fork]
+                    HActiveWindow {
+                        objectName: "taskbarActiveWindow"
+                        bar: root
+                        monitor: Brightness.getMonitorForScreen(root.screen)
                     }
                 }
-                DelegateChoice {
-                    roleValue: "activeWindow"
-                    delegate: EntryWrapper {
-                        Layout.fillWidth: true // [fork]
-                        HActiveWindow {
-                            objectName: "taskbarActiveWindow"
-                            bar: root
-                            monitor: Brightness.getMonitorForScreen(root.screen)
-                        }
+            }
+            // [fork] A MiniDash pill. Csak a vízszintes barnak van rá delegate-je;
+            // az upstream vertikális Bar.qml-ben a DelegateChooser nem talál
+            // egyezést, ezért ott nem jön létre elem, és a bejegyzés nem foglal
+            // helyet.
+            DelegateChoice {
+                roleValue: "miniDash"
+                delegate: EntryWrapper {
+                    MiniDash {
+                        objectName: "taskbarMiniDash"
+                        screenState: root.screenState
                     }
                 }
-                DelegateChoice {
-                    roleValue: "tray"
-                    delegate: EntryWrapper {
-                        HTray {
-                            objectName: "taskbarTray"
-                        }
+            }
+            DelegateChoice {
+                roleValue: "tray"
+                delegate: EntryWrapper {
+                    HTray {
+                        objectName: "taskbarTray"
                     }
                 }
-                DelegateChoice {
-                    roleValue: "clock"
-                    delegate: EntryWrapper {
-                        HClock {
-                            objectName: "taskbarClock"
-                        }
+            }
+            DelegateChoice {
+                roleValue: "clock"
+                delegate: EntryWrapper {
+                    HClock {
+                        objectName: "taskbarClock"
                     }
                 }
-                DelegateChoice {
-                    roleValue: "statusIcons"
-                    delegate: EntryWrapper {
-                        HStatusIcons {
-                            objectName: "taskbarStatusIcons"
-                        }
+            }
+            DelegateChoice {
+                roleValue: "statusIcons"
+                delegate: EntryWrapper {
+                    HStatusIcons {
+                        objectName: "taskbarStatusIcons"
                     }
                 }
-                DelegateChoice {
-                    roleValue: "power"
-                    delegate: EntryWrapper {
-                        HPower {
-                            objectName: "taskbarPowerButton"
-                            screenState: root.screenState
-                        }
+            }
+            DelegateChoice {
+                roleValue: "power"
+                delegate: EntryWrapper {
+                    HPower {
+                        objectName: "taskbarPowerButton"
+                        screenState: root.screenState
                     }
                 }
             }
@@ -253,14 +273,5 @@ Item {
         implicitHeight: item?.implicitHeight ?? 0
 
         children: item
-    }
-
-    // [fork] Mini dashboard pill, a bar tetejéhez, középre horgonyozva
-    MiniDash {
-        id: miniDash
-
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: parent.top
-        screenState: root.screenState
     }
 }

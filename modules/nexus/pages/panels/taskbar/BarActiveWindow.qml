@@ -25,21 +25,22 @@ PageBase {
 
         ToggleRow {
             text: qsTr("Inverted")
+            subtext: qsTr("Rotate the title the other way. Vertical bar only.")
             checked: Config.bar.activeWindow.inverted
             onToggled: GlobalConfig.bar.activeWindow.inverted = checked
         }
 
         ToggleRow {
-            text: qsTr("Show on hover")
-            subtext: qsTr("Only show the active window title while hovering")
+            text: qsTr("Open popout on hover")
+            subtext: qsTr("On: hovering the title opens the window details. Off: a click opens it instead.")
             checked: Config.bar.activeWindow.showOnHover
             onToggled: GlobalConfig.bar.activeWindow.showOnHover = checked
         }
 
         ToggleRow {
             last: true
-            text: qsTr("Popout on hover")
-            subtext: qsTr("Show a window details popout when hovering")
+            text: qsTr("Window details popout")
+            subtext: qsTr("Allow the active window entry to open a details popout at all")
             checked: Config.bar.popouts.activeWindow
             onToggled: GlobalConfig.bar.popouts.activeWindow = checked
         }

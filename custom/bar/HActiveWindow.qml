@@ -30,9 +30,17 @@ Item {
 
     readonly property int maxWidth: {
         const otherModules = bar.children.filter(c => c.entryId && c.item !== this && c.entryId !== "spacer");
-        const otherWidth = otherModules.reduce((acc, curr) => acc + (curr.item.nonAnimWidth ?? curr.width), 0);
+        const otherWidth = otherModules.reduce((acc, curr) => acc + (curr.item?.nonAnimWidth ?? curr.width), 0);
         // Length - 2 cause repeater counts as a child
-        return bar.width - otherWidth - bar.spacing * (bar.children.length - 1) - bar.hPadding * 2;
+        const budget = bar.width - otherWidth - bar.spacing * (bar.children.length - 1) - bar.hPadding * 2;
+
+        // [fork] Ez a kifejezés az upstreamből jött, ahol a `bar` MAGA a layout.
+        // Amíg a fork a layoutot egy Itembe csomagolta, a `bar.spacing` undefined
+        // volt, az egész kifejezés NaN-t adott, és az `int` property ezt némán
+        // 0-ra alakította — a cím elveszett, hibajelzés nélkül. A gyökér ismét
+        // RowLayout, szóval ez most helyes; a korlát azért van itt, mert egy NaN
+        // futásidőben teljesen láthatatlan lenne.
+        return Number.isFinite(budget) ? Math.max(0, budget) : 0;
     }
     property Title current: text1
 

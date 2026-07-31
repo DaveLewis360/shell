@@ -25,11 +25,29 @@ PageBase {
 
         ToggleRow {
             first: true
-            last: true
             text: qsTr("Horizontal bar")
             subtext: qsTr("Place the bar along the top edge instead of the left")
             checked: ExtrasConfig.horizontalBar
             onToggled: ExtrasConfig.setValue("bar", "horizontal", checked)
+        }
+
+        // [fork] Korábban ezt nem lehetett külön kérni: a vízszintes váltó
+        // döntötte el mellékhatásként.
+        ToggleRow {
+            text: qsTr("Island background")
+            subtext: qsTr("Draw the bar as separate rounded blocks with gaps, instead of one continuous surface. Horizontal bar only — the vertical bar is always continuous.")
+            checked: ExtrasConfig.barIslands
+            onToggled: ExtrasConfig.setValue("bar", "islands", checked)
+        }
+
+        // [fork] A MiniDash rendes bar-elem (Config.bar.entries → "miniDash"),
+        // a sorrendje ott állítható; ez a mesterkapcsoló.
+        ToggleRow {
+            last: true
+            text: qsTr("Mini dashboard")
+            subtext: qsTr("System metrics and media controls as a pill in the bar. Horizontal bar only.")
+            checked: ExtrasConfig.miniDash
+            onToggled: ExtrasConfig.setValue("miniDash", "enabled", checked)
         }
 
         // Behaviour
