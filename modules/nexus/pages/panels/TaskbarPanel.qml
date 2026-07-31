@@ -11,6 +11,23 @@ PageBase {
     title: qsTr("Taskbar")
     isSubPage: true
 
+    // [fork] Az elemek jelenléte a bar.entries listából jön; ez a lista a
+    // sorrendet IS adja, ezért nem lehet egyszerű bool property-ként kezelni.
+    // Ezek a segédek egyetlen bejegyzés `enabled` mezőjét írják át, a többit és a
+    // sorrendet érintetlenül hagyva — így az aktív ablak és a MiniDash egymással
+    // felcserélhető anélkül, hogy kézzel kellene JSON-t szerkeszteni.
+    function entryEnabled(id: string): bool {
+        const e = Config.bar.entries.find(x => x.id === id);
+        return e ? (e.enabled ?? true) : false;
+    }
+
+    function setEntryEnabled(id: string, on: bool): void {
+        GlobalConfig.bar.entries = Config.bar.entries.map(e => e.id === id ? ({
+                    id: e.id,
+                    enabled: on
+                }) : e);
+    }
+
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
@@ -38,6 +55,15 @@ PageBase {
             subtext: qsTr("Draw the bar as separate rounded blocks with gaps, instead of one continuous surface. Horizontal bar only — the vertical bar is always continuous.")
             checked: ExtrasConfig.barIslands
             onToggled: ExtrasConfig.setValue("bar", "islands", checked)
+        }
+
+        // [fork] Az aktív ablak és a MiniDash ugyanazt a középső sávot kapja, ezért
+        // egymás alternatívái — mindkettő külön kapcsolható.
+        ToggleRow {
+            text: qsTr("Active window title")
+            subtext: qsTr("Show the focused window's icon and title in the centre of the bar")
+            checked: root.entryEnabled("activeWindow")
+            onToggled: root.setEntryEnabled("activeWindow", checked)
         }
 
         // [fork] A MiniDash rendes bar-elem (Config.bar.entries → "miniDash"),

@@ -60,9 +60,15 @@ RowLayout {
     // könnyebb oldalra visszaadjuk a teljes különbséget margóként, a két oldal fix
     // súlya kiegyenlítődik, és a pill középre kerül.
     //
-    // A spacer nem számít bele (nincs saját szélessége), az activeWindow-nál pedig
-    // az implicitWidth-et vesszük: az azon felüli rész a szabad helyből jön, tehát
-    // ugyanúgy oszlik, mint a spacereké.
+    // A fillWidth elemek (spacer, activeWindow) NEM számítanak bele. A spacernek
+    // nincs saját szélessége; az activeWindow-t pedig azért kell kihagyni, mert a
+    // szélessége a címből jön, a cím a maxWidth-ből, a maxWidth a többi elem
+    // szélességéből — ha ez visszahatna a margóra, kötés-hurok lenne belőle.
+    //
+    // Következmény: az igazítás akkor EGZAKT, ha a középső sávban egy elem van,
+    // vagyis az aktív ablak és a MiniDash egymás alternatívája (a beállításokban
+    // felcserélhető). Ha mindkettő be van kapcsolva, három fillWidth elem osztozik
+    // a szabad helyen kettő helyett, és a pill a különbség arányában elcsúszik.
     readonly property real fixedBeforeMiniDash: fixedWidthAround(true)
     readonly property real fixedAfterMiniDash: fixedWidthAround(false)
 
@@ -76,7 +82,7 @@ RowLayout {
                 seenMiniDash = true;
                 continue;
             }
-            if (!entry || id === "spacer")
+            if (!entry || id === "spacer" || id === "activeWindow")
                 continue;
             if (before === !seenMiniDash)
                 sum += entry.implicitWidth;
@@ -237,6 +243,7 @@ RowLayout {
                     MiniDash {
                         objectName: "taskbarMiniDash"
                         screenState: root.screenState
+                        barHeight: root.height
                     }
                 }
             }

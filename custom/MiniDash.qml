@@ -27,6 +27,13 @@ Item {
 
     readonly property real mediaWidth: mediaLayout.implicitWidth
 
+    // [fork] A pill a bar teljes vastagságát kitölti. Rendes bar-elemként a
+    // magasságot az EntryWrapper az implicitHeight-ből veszi, ezért kívülről kell
+    // megkapnia — a HBar adja át a saját magasságát. Korábban `height:
+    // parent.height` volt, ami a layoutban körkörös kötést adott volna; egy ideig
+    // a bar belső mérete (40px) állt itt, attól lett alacsonyabb a sávnál.
+    required property real barHeight
+
     readonly property real pillWidth: Math.max(systemWidth, mediaWidth) + Tokens.padding.large * 2
 
     // A pill elbújik, amíg a dashboard nyitva van — a kettő ugyanazt az
@@ -35,13 +42,8 @@ Item {
 
     objectName: "miniDash"
 
-    // [fork] Rendes bar-elemként a MiniDash-nek saját implicit magassága kell,
-    // hogy az EntryWrapper méretezni tudja. Korábban `height: parent.height` volt,
-    // ami a layoutban körkörös kötést adott volna (a wrapper magassága éppen az
-    // elem implicitHeight-jából jön). A bar szokásos belső mérete a helyes érték —
-    // ugyanez adja a workspaces pill magasságát is.
     implicitWidth: pillWidth
-    implicitHeight: Tokens.sizes.bar.innerWidth
+    implicitHeight: barHeight
 
     enabled: !dashOpen
     opacity: dashOpen ? 0 : 1
@@ -96,17 +98,15 @@ Item {
     StyledRect {
         id: bg
 
-        // [fork] Korábban a pill a bar teteje fölé nyúlt (-barPadding), amit a
-        // BarWrapper clip-je le is vágott. Rendes bar-elemként pontosan a saját
-        // helyét tölti ki.
+        // [fork] Ugyanaz a minta, mint az upstream workspaces pillnél: a kontroll
+        // a bar felületénél egy fokkal világosabb m3surfaceContainer-t használ,
+        // ezért külön elemként olvasható — és ugyanúgy működik folyamatos és
+        // szigetes háttéren is, mert nem a bar színét ismétli. Korábban m3surface
+        // volt, ami szigetes módban egybeolvadt a sáv hátterével.
         anchors.fill: parent
 
-        color: Colours.tPalette.m3surface
-
-        topLeftRadius: Config.border.rounding
-        topRightRadius: Config.border.rounding
-        bottomLeftRadius: Config.border.rounding
-        bottomRightRadius: Config.border.rounding
+        color: Colours.tPalette.m3surfaceContainer
+        radius: Tokens.rounding.full
 
         // Swipe View for Pages
         ListView {
