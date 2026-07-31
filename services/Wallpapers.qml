@@ -31,6 +31,24 @@ Searcher {
     // Source the colour scheme/luminance reads from (video -> its poster frame)
     readonly property string currentColourSource: currentIsVideo ? thumbFor(actualCurrent) : actualCurrent
 
+    // [fork] Ez a két függvény upstreamből származik, és a fork korábban törölte —
+    // de az ÉRINTETLEN upstream Nexus lapok továbbra is hívják őket:
+    //   getCategoryFor: WallpaperCategory.qml:30, WallpaperSelect.qml:108/135/142
+    //   setRandom:      WallpaperSelect.qml:66
+    // Nélkülük a Wallpaper & Style lapon a kategória-csoportosítás és a „véletlen"
+    // gomb TypeError-t dobott, vagyis a kategória-böngészés használhatatlan volt.
+    // Visszaállítva az upstream implementációval, változtatás nélkül.
+    function getCategoryFor(w: FileSystemEntry): string {
+        let category = w.parentDir.slice(Paths.wallsdir.length + 1);
+        if (category.includes("/"))
+            category = category.slice(0, category.indexOf("/"));
+        return category;
+    }
+
+    function setRandom(): void {
+        Quickshell.execDetached(["caelestia", "wallpaper", "-r", ...smartArg]);
+    }
+
     function setWallpaper(path: string): void {
         actualCurrent = path;
 

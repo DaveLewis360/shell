@@ -52,6 +52,30 @@ RowLayout {
         return xVal;
     }
 
+    // [fork] Szigetes módban ezek az elemek kapnak saját, TÖMÖR hátteret — ugyanazt,
+    // amit a bar jobb oldali blokkja (barBg) is használ.
+    //
+    // Miért kell: a pillek maga áttetsző m3surfaceContainer-t festenek (ez adja,
+    // hogy külön kontrollként olvashatók a bar felületén). Folyamatos módban a
+    // képernyő-keret benyúlik a bar alá, és az adja alá a tömör hátteret. Szigetes
+    // módban viszont nincs ilyen backdrop, és a bal oldali elemek közvetlenül a
+    // wallpaperre kerültek — onnan az „alig látható" hatás.
+    readonly property var islandEntries: {
+        const out = [];
+        for (let i = 0; i < repeater.count; i++) {
+            const entry = repeater.itemAt(i) as EntryWrapper;
+            const id = entry?.modelData?.id;
+            if (!entry || (id !== "workspaces" && id !== "miniDash"))
+                continue;
+            out.push({
+                x: entry.x,
+                w: entry.width,
+                h: entry.height
+            });
+        }
+        return out;
+    }
+
     // [fork] A MiniDash vízszintes középre igazítása.
     //
     // A RowLayout a szabad helyet a fillWidth elemek között egyenlően osztja, ezért

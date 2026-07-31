@@ -271,10 +271,26 @@ StyledWindow {
         // [fork] A szigetes bar-háttér. Csak szigetes módban látszik; folyamatos
         // módban a képernyő-keret nyúlik be a bar alá helyette.
         //
-        // A workspaces alatti külön téglalap innen KIKERÜLT: a workspace-jelző
-        // upstreamben maga festi a saját hátterét (m3surfaceContainer), és amíg
-        // ide is került egy m3surface téglalap, a kettő egybeolvadt és a jelző
-        // eltűnt. Lásd custom/bar/HWorkspaces.qml.
+        // Két rész van: a jobb oldali összefüggő blokk (barBg), és a magukban álló
+        // elemek (workspaces, MiniDash), amiket a bar sorol fel. Ez utóbbi azért
+        // kell, mert a pillek áttetsző m3surfaceContainer-t festenek — tömör
+        // backdrop nélkül közvetlenül a wallpaperre kerültek, és alig látszottak.
+        // A jobb oldalon ugyanezt a szerepet a barBg töltötte be, ezért ott jó volt.
+        Repeater {
+            model: root.barIslands ? bar.islandEntries : []
+
+            Rectangle {
+                required property var modelData
+
+                x: modelData.x
+                y: bar.y + (bar.implicitHeight - modelData.h) / 2
+                implicitWidth: modelData.w
+                implicitHeight: modelData.h
+                radius: Tokens.rounding.full
+                color: Qt.alpha(root.surfaceColour, 1)
+            }
+        }
+
         Rectangle {
             id: barBg
 
