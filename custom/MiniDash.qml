@@ -248,11 +248,12 @@ Item {
 
                                 StyledText {
                                     text: Math.round(Cpu.percentage * 100) + "%"
-                                    font: Tokens.font.body.builders.medium.weight(Font.Bold).build()
+                                    font.pointSize: 12
+                                    font.bold: true
                                 }
                                 StyledText {
                                     text: Math.round(Cpu.temperature) + "°C"
-                                    font: Tokens.font.body.small
+                                    font.pointSize: 10
                                     color: Cpu.temperature > root.tempWarnC ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
                                 }
                             }
@@ -281,11 +282,12 @@ Item {
 
                                 StyledText {
                                     text: Math.round(Memory.percentage * 100) + "%"
-                                    font: Tokens.font.body.builders.medium.weight(Font.Bold).build()
+                                    font.pointSize: 12
+                                    font.bold: true
                                 }
                                 StyledText {
                                     text: (Memory.used / 1024 / 1024).toFixed(1) + "G"
-                                    font: Tokens.font.body.small
+                                    font.pointSize: 10
                                     color: Colours.palette.m3onSurfaceVariant
                                 }
                             }
@@ -314,11 +316,12 @@ Item {
 
                                 StyledText {
                                     text: Math.round((Storage.primaryDisk?.perc ?? 0) * 100) + "%"
-                                    font: Tokens.font.body.builders.medium.weight(Font.Bold).build()
+                                    font.pointSize: 12
+                                    font.bold: true
                                 }
                                 StyledText {
                                     text: "DISK"
-                                    font: Tokens.font.body.small
+                                    font.pointSize: 10
                                     color: Colours.palette.m3onSurfaceVariant
                                 }
                             }
@@ -349,11 +352,12 @@ Item {
 
                                 StyledText {
                                     text: Math.round(Gpu.percentage * 100) + "%"
-                                    font: Tokens.font.body.builders.medium.weight(Font.Bold).build()
+                                    font.pointSize: 12
+                                    font.bold: true
                                 }
                                 StyledText {
                                     text: Math.round(Gpu.temperature) + "°C"
-                                    font: Tokens.font.body.small
+                                    font.pointSize: 10
                                     color: Gpu.temperature > root.tempWarnC ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
                                 }
                             }
@@ -444,7 +448,7 @@ Item {
                                 MaterialIcon {
                                     anchors.centerIn: parent
                                     text: "music_note"
-                                    font: Tokens.font.body.medium
+                                    font.pointSize: 14
                                     color: Colours.palette.m3onSurfaceVariant
                                     visible: image.status != Image.Ready
                                 }
@@ -466,14 +470,15 @@ Item {
                             StyledText {
                                 width: parent.width
                                 text: (Players.active?.trackTitle || "")
-                                font: Tokens.font.body.builders.medium.weight(Font.DemiBold).build()
+                                font.pointSize: 13
+                                font.weight: 600
                                 elide: Text.ElideRight
                                 color: Colours.palette.m3primary
                             }
                             StyledText {
                                 width: parent.width
                                 text: (Players.active?.trackArtist || "")
-                                font: Tokens.font.body.small
+                                font.pointSize: 11
                                 elide: Text.ElideRight
                                 color: Colours.palette.m3onSurfaceVariant
                                 visible: text.length > 0
@@ -527,7 +532,8 @@ Item {
             Layout.alignment: Qt.AlignHCenter
             text: `${Math.round(metric.value * 100)}%`
             color: metric.colour
-            font: Tokens.font.body.builders.small.weight(Font.Bold).build()
+            font.pointSize: 9
+            font.bold: true
         }
     }
 
