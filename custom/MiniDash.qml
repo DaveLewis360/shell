@@ -28,14 +28,21 @@ Item {
 
     readonly property real mediaWidth: mediaLayout.implicitWidth
 
-    // [fork] A pill a bar teljes vastagságát kitölti. Rendes bar-elemként a
-    // magasságot az EntryWrapper az implicitHeight-ből veszi, ezért kívülről kell
-    // megkapnia — a HBar adja át a saját magasságát. Korábban `height:
-    // parent.height` volt, ami a layoutban körkörös kötést adott volna; egy ideig
-    // a bar belső mérete (40px) állt itt, attól lett alacsonyabb a sávnál.
-    required property real barHeight
+    // [fork] A bar vastagsága (a hossztengelyére merőlegesen): vízszintesnél a bar
+    // magassága, vertikálisnál a szélessége. Rendes bar-elemként a méretet az
+    // EntryWrapper az implicit értékekből veszi, ezért kívülről kell megkapnia — a
+    // bar adja át. A `height: parent.height` nem járható út, mert a wrapper mérete
+    // éppen az elemből jön, az körkörös lenne.
+    required property real barThickness
 
-    readonly property real pillWidth: Math.max(systemWidth, mediaWidth) + Tokens.padding.large * 2
+    // [fork] Vertikális barban a vízszintes tartalom (négy metrika egymás mellett,
+    // körkörös vizualizáló, cím/előadó) nem fér be egy ~40 px széles sávba. Ezért a
+    // pill két külön tartalmat kínál, és a bar dönt: a vízszintes marad az eredeti,
+    // a vertikális egy kompakt oszlop — ikon fölött százalék, médiánál borító és
+    // egyetlen lejátszás-gomb.
+    property bool vertical: false
+
+    readonly property real pillLength: Math.max(vertical ? verticalLayout.implicitHeight : systemWidth, vertical ? 0 : mediaWidth) + Tokens.padding.large * 2
 
     // A pill elbújik, amíg a dashboard nyitva van — a kettő ugyanazt az
     // információt mutatja, csak más méretben.
@@ -43,8 +50,8 @@ Item {
 
     objectName: "miniDash"
 
-    implicitWidth: pillWidth
-    implicitHeight: barHeight
+    implicitWidth: vertical ? barThickness : pillLength
+    implicitHeight: vertical ? pillLength : barThickness
 
     enabled: !dashOpen
     opacity: dashOpen ? 0 : 1
@@ -113,8 +120,78 @@ Item {
         radius: Tokens.rounding.extraLarge
 
         // Swipe View for Pages
+        // [fork] Kompakt vertikális tartalom. Egy ~40 px széles sávban a metrika
+        // csak egymás alá fér: ikon, alatta a százalék. A hőmérséklet-sor kimarad,
+        // mert olvashatatlan méretre kellene zsugorítani — a színkódolás viszont
+        // megmarad, tehát a meleg CPU/GPU továbbra is látszik.
+        ColumnLayout {
+            id: verticalLayout
+
+            anchors.centerIn: parent
+            visible: root.vertical
+            enabled: root.vertical
+            spacing: Tokens.spacing.small
+
+            VMetric {
+                icon: "memory"
+                value: Cpu.percentage
+                colour: Cpu.temperature > 75 ? Colours.palette.m3error : Colours.palette.m3primary
+            }
+            VMetric {
+                icon: "memory_alt"
+                value: Memory.percentage
+                colour: Colours.palette.m3secondary
+            }
+            VMetric {
+                icon: "hard_drive"
+                value: Storage.primaryDisk?.perc ?? 0
+                colour: Colours.palette.m3tertiary
+            }
+            VMetric {
+                icon: "videogame_asset"
+                value: Gpu.percentage
+                colour: Gpu.temperature > 75 ? Colours.palette.m3error : Colours.palette.m3primary
+                visible: Gpu.percentage >= 0
+            }
+
+            // Média: borító és egyetlen lejátszás-gomb — cím/előadó nem fér ki.
+            Rectangle {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: 20
+                visible: root.hasMedia
+                implicitHeight: 1
+                color: Colours.palette.m3outlineVariant
+                opacity: 0.2
+            }
+            Rectangle {
+                Layout.alignment: Qt.AlignHCenter
+                visible: root.hasMedia
+                implicitWidth: 26
+                implicitHeight: 26
+                radius: 13
+                color: Colours.palette.m3surfaceContainer
+                clip: true
+
+                Image {
+                    anchors.fill: parent
+                    source: Players.getArtUrl(Players.active) || Players.lastArtUrl
+                    fillMode: Image.PreserveAspectCrop
+                }
+            }
+            ControlBtn {
+                Layout.alignment: Qt.AlignHCenter
+                visible: root.hasMedia
+                icon: root.isPlaying ? "pause" : "play_arrow"
+                enabled: (Players.active?.canTogglePlaying ?? false) && !root.screenState.dashboard
+                onClicked: Players.active?.togglePlaying()
+            }
+        }
+
         ListView {
             id: view
+
+            visible: !root.vertical
+            enabled: !root.vertical
 
             anchors.fill: parent
 
@@ -412,6 +489,32 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    // [fork] Egy metrika a kompakt vertikális változatban: ikon, alatta a százalék.
+    component VMetric: ColumnLayout {
+        id: metric
+
+        required property string icon
+        required property real value
+        required property color colour
+
+        Layout.alignment: Qt.AlignHCenter
+        spacing: -2
+
+        MaterialIcon {
+            Layout.alignment: Qt.AlignHCenter
+            text: metric.icon
+            color: metric.colour
+            fontStyle.pointSize: 15
+        }
+        StyledText {
+            Layout.alignment: Qt.AlignHCenter
+            text: `${Math.round(metric.value * 100)}%`
+            color: metric.colour
+            font.pointSize: 9
+            font.bold: true
         }
     }
 

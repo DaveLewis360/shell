@@ -279,7 +279,7 @@ RowLayout {
                     MiniDash {
                         objectName: "taskbarMiniDash"
                         screenState: root.screenState
-                        barHeight: root.height
+                        barThickness: root.height
                     }
                 }
             }

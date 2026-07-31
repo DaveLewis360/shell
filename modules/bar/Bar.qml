@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import "popouts" as BarPopouts
 import "components"
 import "components/workspaces"
+import qs.custom
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -24,6 +25,10 @@ ColumnLayout {
     // mindkét orientációt. A `pos`/`len` a bar tengelye mentén értendő (itt Y), a
     // `thick` arra merőlegesen. Upstreamben ez a fogalom nem létezik: a bar ott
     // mindig a képernyő-keret része, sziget nélkül.
+    // [fork] A középső slotban itt is egyszerre egy elem van, ahogy vízszintesen:
+    // a MiniDash kapcsolója dönt, és bekapcsolva átveszi az aktív ablak helyét.
+    readonly property string centreEntry: ExtrasConfig.miniDash ? "miniDash" : "activeWindow"
+
     readonly property real clusterStart: {
         let val = height; // ha nincs fillWidth elem, az alsó szél
         for (let i = repeater.count - 1; i >= 0; i--) {
@@ -40,7 +45,7 @@ ColumnLayout {
         for (let i = 0; i < repeater.count; i++) {
             const entry = repeater.itemAt(i) as EntryWrapper;
             const id = entry?.modelData?.id;
-            if (!entry || (id !== "workspaces" && id !== "activeWindow"))
+            if (!entry || (id !== "workspaces" && id !== root.centreEntry))
                 continue;
             out.push({
                 pos: entry.y,
@@ -147,11 +152,10 @@ ColumnLayout {
         id: repeater
 
         model: ScriptModel {
-            // [fork] A "miniDash" a fork saját eleme, és csak a vízszintes barnak
-            // (custom/bar/HBar.qml) van rá delegate-je. Itt ki kell szűrni, különben
-            // a Repeater egy üres helyet tart neki, az itemAt(i) null lesz, és az
-            // ezen a listán végigmenő upstream kód elhasal.
-            values: root.Config.bar.entries.filter(e => (e.enabled ?? true) && e.id !== "miniDash")
+            // [fork] A "miniDash" a fork saját eleme. A vertikális barban a kompakt
+            // változata jelenik meg (MiniDash.vertical), a kapcsolója viszont
+            // ugyanaz — így a beállítás mindkét orientációban működik.
+            values: root.Config.bar.entries.filter(e => (e.enabled ?? true) && (e.id !== "miniDash" || root.centreEntry === "miniDash") && (e.id !== "activeWindow" || root.centreEntry === "activeWindow"))
         }
 
         DelegateChooser {
@@ -188,6 +192,20 @@ ColumnLayout {
                         objectName: "taskbarActiveWindow"
                         bar: root
                         monitor: Brightness.getMonitorForScreen(root.screen)
+                    }
+                }
+            }
+            // [fork] A MiniDash kompakt, vertikális változata. A tartalom a
+            // MiniDash.vertical ágán él; itt csak átadjuk a bar vastagságát és
+            // jelezzük az orientációt.
+            DelegateChoice {
+                roleValue: "miniDash"
+                delegate: EntryWrapper {
+                    MiniDash {
+                        objectName: "taskbarMiniDash"
+                        screenState: root.screenState
+                        barThickness: root.width
+                        vertical: true
                     }
                 }
             }
