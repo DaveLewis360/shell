@@ -1,42 +1,20 @@
-# `custom/` — a fork saját komponensei
+# `custom/` — fork-only components
 
-Ide tartozik **minden olyan komponens, ami csak ebben a forkban létezik**, és
-nem az upstream fájljainak módosítása. Ezek a fájlok upstream merge során
-soha nem konfliktusolnak, mert az upstream nem is tud róluk.
+Everything here exists **only in this fork**. None of it is a modification of an
+upstream file, so none of it can ever conflict during an upstream merge —
+upstream does not know these files exist.
 
-## Bar mód váltása
+## Contents
 
-A fork vízszintes barja és az eredeti caelestia vertikális barja **egymás
-mellett él**. Váltás futás közben, újraindítás nélkül:
+| File | What it is |
+| --- | --- |
+| `ExtrasConfig.qml` | Reads this fork's settings from `~/.config/caelestia/extras.json` |
+| `MiniDash.qml` | Compact dashboard that lives in the bar |
+| `bar/H*.qml` | The horizontal bar and its components — copies of upstream's `modules/bar/` files with the axes swapped. Provenance recorded in `bar/VENDORED.json` |
 
-```bash
-barmode              # aktuális mód
-barmode h            # vízszintes (fork)
-barmode v            # vertikális (eredeti caelestia)
-barmode toggle
-```
+## Importing
 
-Ez a `~/.config/caelestia/extras.json` fájlt írja:
-
-```json
-{
-    "bar": { "horizontal": true }
-}
-```
-
-### Miért külön fájl, és nem a `shell.json`?
-
-Az upstream C++ `ConfigObject` **csak a sémában definiált kulcsokat teszi ki**
-QML property-ként. A `6e570081` commit óta az ismeretlen kulcsok *megmaradnak*
-mentéskor (`mergeUnknownKeys`), de nem lesz belőlük olvasható property. Ezért
-a fork beállításai külön fájlban élnek — így nulla ütközés az upstream mentési
-ciklusával, és nem kell hozzá upstream-módosítás.
-
-Olvasó: `custom/ExtrasConfig.qml` (`FileView` + `watchChanges`, ezért élő).
-
-## Használat
-
-A Quickshell a shell gyökerét `qs` névtérként teszi elérhetővé:
+Quickshell exposes the shell root as the `qs` namespace:
 
 ```qml
 import qs.custom
@@ -44,44 +22,53 @@ import qs.custom
 MiniDash { }
 ```
 
-## Konvenció
+## Convention
 
-- **Ide kerül:** teljesen új komponens, ami nem létezik upstreamben.
-- **NEM ide kerül:** upstream komponens módosítása. Azt a helyén kell
-  szerkeszteni — lásd a `CUSTOMIZATIONS.md`-t, hogy miért.
+- **Belongs here:** a component that does not exist upstream at all.
+- **Does not belong here:** a modification of an upstream component. Edit that in
+  place — see [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) for why.
 
-## Mit tartalmaz
+## The catch with `bar/` copies
 
-| Fájl | Mi ez |
-|---|---|
-| `ExtrasConfig.qml` | A fork beállításai (`extras.json`) |
-| `MiniDash.qml` | Kompakt dashboard a bar mellett |
-| `bar/H*.qml` | A vízszintes bar és komponensei — az upstream `modules/bar/` másolatai, átméretezve. Eredetük és a másolás alapja: `bar/VENDORED.json` |
+The horizontal bar is a `Column`→`Row` / `y`↔`x` transformation of upstream
+components' *internal* layout. That cannot be overridden from outside, so the
+files had to be copied.
 
-## A `custom/bar/` másolatok árnyoldala
+The upside: `modules/bar/` stays byte-identical to upstream, so merges there are
+clean. The downside: these copies **go stale silently** when upstream fixes
+something in the original.
 
-A vízszintes bar `Column`→`Row`, `y`↔`x` átalakítás, ami upstream komponensek
-*belső* layoutját írja át — azt kívülről nem lehet felülülírni, csak a fájl
-lemásolásával. Cserébe az upstream fájlok érintetlenek maradnak (nincs merge
-konfliktus), viszont a másolatok **csendben elavulnak**, ha upstream javít
-bennük valamit.
-
-Ezért figyelni kell rájuk:
+That is what `fork-drift` is for:
 
 ```bash
-fork-diff          # mit módosít a fork összesen
-fork-diff --files  # fájlonkénti bontás
+fork-drift              # are any copies out of date?
+fork-drift --show HBar.qml   # what changed upstream
 ```
 
-## A drawers réteg orientációfüggő
+`VENDORED.json` records the upstream path, blob hash and ref for each copy, which
+is what makes the comparison possible. **If you re-sync a copy from upstream,
+update its entry** — otherwise drift detection silently stops working for that
+file.
 
-A bar körüli helyfoglalás és a hover-zónák nem másolhatók ki, mert az upstream
-`modules/drawers/` fájljaiban élnek. Ezek a fork-ban **feltételesek** lettek
-(`bar.horizontal ? … : …`), így mindkét mód működik ugyanabból a kódból:
+## Settings
 
-`BarWrapper.qml`, `Exclusions.qml`, `Panels.qml`, `Regions.qml`,
-`Interactions.qml`, `ContentWindow.qml`
+`ExtrasConfig` reads `~/.config/caelestia/extras.json`:
 
-> **Figyelem:** QML-ben az `anchors.bottom: cond ? parent.bottom : undefined`
-> **nem törli** az anchort — a wrapper mindkét élre felfeszül. Ezért itt
-> mindenhol explicit `x`/`y`/`width`/`height` van feltételes anchor helyett.
+```json
+{
+    "bar": { "horizontal": true },
+    "miniDash": { "enabled": true }
+}
+```
+
+Two implementation details worth knowing if you touch it:
+
+**It reads through a binding, not `onLoaded`.** `FileView.blockLoading` only
+blocks if `text()` is actually called, so the value must come from a binding. Read
+it in `onLoaded` instead and the shell builds its first frame with the *wrong*
+default — the bar renders vertical, then jumps to horizontal, and the Wayland
+exclusive zone ends up reserved on both edges at once.
+
+**Writes go through `setValue()`**, which rewrites the whole file. The `data`
+binding then re-evaluates from the file change, so there is no manual state to
+keep in sync.

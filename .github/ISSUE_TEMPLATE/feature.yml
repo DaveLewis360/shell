@@ -1,24 +1,38 @@
 name: Feature request
-description: Suggest a new feature
-labels: ["enhancement"]
-type: "Feature"
-title: "[FEATURE] "
+description: Suggest something for this fork
+labels: [enhancement]
 body:
     - type: markdown
-      attributes:
-          value: "NOTE: Please write in **English**."
+      value: |
+          ### Before you file
+
+          If your idea is not specific to the **horizontal bar** or the other
+          fork additions, it probably belongs
+          [upstream](https://github.com/caelestia-dots/shell/issues) — that way
+          everyone gets it, and this fork stays small.
+
+          This fork deliberately keeps its divergence from upstream as small as
+          possible, so features that could live upstream should.
 
     - type: textarea
       attributes:
-          label: "What would you like to be added?"
-          description: "Can be a suggestion for an existing feature. You can suggest a widget, minor user interaction changes.. whatever."
+          label: What would you like
+      validations:
+          required: true
 
     - type: textarea
       attributes:
-          label: "How will it help?"
-          description: "It's helpful to include examples (like in your use case)."
+          label: Why
+          description: What problem does it solve?
+      validations:
+          required: true
 
-    - type: textarea
+    - type: dropdown
       attributes:
-          label: "Extra info"
-          description: "If you want a new widget, a pic of the inspiration (if available) would be awesome."
+          label: Could this live upstream instead?
+          options:
+              - "No — it is specific to the horizontal bar"
+              - "Maybe — I am not sure"
+              - "Yes, but I am asking here first"
+      validations:
+          required: true

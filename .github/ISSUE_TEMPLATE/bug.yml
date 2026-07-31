@@ -1,0 +1,68 @@
+name: Bug report
+description: Something is broken in this fork
+labels: [bug]
+body:
+    - type: markdown
+      value: |
+          ### Is this a fork bug or an upstream bug?
+
+          This fork mainly changes the **bar layout**. Everything else is upstream
+          code.
+
+          A quick way to tell: run `barmode v` to switch to the vertical
+          (upstream) layout and try again.
+
+          - **Still broken in vertical mode** → most likely an upstream bug.
+            Please report it at
+            [caelestia-dots/shell](https://github.com/caelestia-dots/shell/issues)
+            instead — they can fix it for everyone.
+          - **Only broken in horizontal mode** → that is this fork. Report it here.
+
+          If you are unsure, report it here anyway and say so.
+
+    - type: checkboxes
+      attributes:
+          label: Which layout?
+          options:
+              - label: Happens in horizontal mode
+              - label: Happens in vertical mode
+              - label: I did not test the other mode
+
+    - type: textarea
+      attributes:
+          label: What happens
+          description: What you expected, and what happened instead.
+      validations:
+          required: true
+
+    - type: textarea
+      attributes:
+          label: How to reproduce
+          placeholder: |
+              1. ...
+              2. ...
+      validations:
+          required: true
+
+    - type: textarea
+      attributes:
+          label: Shell log
+          description: |
+              Find the PID with `pgrep -x qs`, then:
+
+              ```bash
+              qs log /run/user/$UID/quickshell/by-pid/<PID>/log.qslog | tail -50
+              ```
+          render: shell
+
+    - type: textarea
+      attributes:
+          label: Version info
+          description: Output of the commands below.
+          placeholder: |
+              $ git -C <this repo> log --oneline -1
+              $ qs --version
+              $ hyprctl version | head -1
+          render: shell
+      validations:
+          required: true
