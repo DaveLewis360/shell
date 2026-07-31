@@ -1,15 +1,15 @@
 pragma ComponentBehavior: Bound
 
 import "../../modules/bar/components/workspaces"
-import qs.modules.bar.popouts as BarPopouts
 import "../../modules/bar/components"
+import qs.custom
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Caelestia.Config
 import qs.components
-import qs.custom
 import qs.services
+import qs.modules.bar.popouts as BarPopouts
 
 // [fork] Az upstream root-ja közvetlenül egy ColumnLayout. Nálunk Item, amiben
 // a RowLayout ül — így a MiniDash a bar mellé, a képernyő tetejére horgonyozható.

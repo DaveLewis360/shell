@@ -36,13 +36,13 @@ Singleton {
 
     // Alapértékek, ha a fájl még nem létezik vagy hibás
     readonly property var defaults: ({
-        bar: {
-            horizontal: false
-        },
-        miniDash: {
-            enabled: true
-        }
-    })
+            bar: {
+                horizontal: false
+            },
+            miniDash: {
+                enabled: true
+            }
+        })
 
     // A nyers JSON. Kötés, nem esemény — lásd a fenti magyarázatot.
     readonly property var data: {

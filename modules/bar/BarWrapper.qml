@@ -1,13 +1,13 @@
 pragma ComponentBehavior: Bound
 
+import qs.custom
+import qs.custom.bar
 import QtQuick
 import Quickshell
 import Caelestia.Config
 import qs.components
 import qs.utils
 import qs.modules.bar.popouts as BarPopouts
-import qs.custom
-import qs.custom.bar
 
 Item {
     id: root

@@ -34,9 +34,8 @@ StyledClippingRect {
     // pöttyöknél (ikonok vs pöttyök), ezért a nagyobbat vesszük. A margót is
     // hozzáadjuk, amit a Loader levon, különben az utolsó ikon a maszk szélére
     // esik és elfakul.
-    readonly property real specialContentWidth: root.onSpecial && specialWs.item
-        ? (specialWs.item as HSpecialWorkspaces).contentWidth + Tokens.padding.extraSmall * 2
-        : 0
+
+    readonly property real specialContentWidth: root.onSpecial && specialWs.item ? (specialWs.item as HSpecialWorkspaces).contentWidth + Tokens.padding.extraSmall * 2 : 0
 
     implicitWidth: Math.max(layout.implicitWidth, specialContentWidth) + Tokens.padding.small
 
@@ -45,6 +44,7 @@ StyledClippingRect {
     }
 
     color: "transparent"
+
     radius: Tokens.rounding.full
 
     Item {

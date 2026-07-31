@@ -278,7 +278,6 @@ CustomMouseArea {
                 const inDashboardArea = root.inTopPanel(root.panels.dashboard, root.lastX, root.lastY);
                 const inOsdArea = root.inRightPanel(root.panels.osdWrapper, root.lastX, root.lastY);
 
-
                 if (!inDashboardArea) {
                     root.screenState.dashboard = false;
                 }

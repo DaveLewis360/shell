@@ -19,9 +19,11 @@ Item {
 
     readonly property bool isVideo: Images.isVideoByName(root.source)
     readonly property string effectiveSource: {
-        if (!root.source) return "";
+        if (!root.source)
+            return "";
         let s = root.source;
-        if (s.startsWith("file://")) s = s.substring(7);
+        if (s.startsWith("file://"))
+            s = s.substring(7);
         if (Images.isVideoByName(s)) {
             const thumb = Wallpapers.thumbFor(s);
             // Fire and forget thumbnail generation if it doesn't exist

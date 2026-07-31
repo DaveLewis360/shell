@@ -165,6 +165,7 @@ StyledWindow {
 
         BlobInvertedRect {
             id: screenBorderBlob
+
             anchors.fill: parent
             anchors.margins: -50 // Make border thicker to smooth out bulge from closed drawers
             group: blobGroup
@@ -177,51 +178,60 @@ StyledWindow {
 
         PanelBg {
             id: dashBg
+
             panel: panels.dashboard
             deformAmount: 0.1
         }
 
         PanelBg {
             id: launcherBg
+
             panel: panels.launcher
             deformAmount: 0.1
         }
 
         PanelBg {
             id: sessionBg
+
             panel: panels.sessionWrapper
             deformAmount: 0.2
         }
 
         PanelBg {
             id: sidebarBg
+
             panel: panels.sidebar
             implicitHeight: panel.height + 2
         }
 
         PanelBg {
             id: osdBg
+
             panel: panels.osdWrapper
             deformAmount: 0.25
         }
 
         PanelBg {
             id: notifsBg
+
             panel: panels.notifications
         }
 
         PanelBg {
             id: utilsBg
+
             panel: panels.utilities
         }
 
         PanelBg {
             id: popoutBg
+
             panel: panels.popoutsWrapper
         }
 
         Rectangle {
             id: workspacesBg
+
             visible: bar.horizontal && bar.workspacesWidth > 0
             x: bar.workspacesX
             y: bar.y + (bar.implicitHeight - implicitHeight) / 2
@@ -233,6 +243,7 @@ StyledWindow {
 
         Rectangle {
             id: barBg
+
             visible: bar.horizontal
             x: bar.rightPartX
             y: bar.y

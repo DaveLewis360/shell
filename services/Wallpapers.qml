@@ -23,6 +23,7 @@ Searcher {
 
     // Stable, content-addressed thumbnail cache (shared by launcher, control center & colour analysis)
     readonly property string thumbsDir: `${Paths.cache}/wallpaper/thumbnails`
+
     function thumbFor(path: string): string {
         return `${thumbsDir}/${Qt.md5(path)}.jpg`;
     }

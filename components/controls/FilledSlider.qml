@@ -64,6 +64,7 @@ Slider {
 
             Item {
                 id: iconWrapper
+
                 anchors.centerIn: parent
 
                 property bool moving: handle.moving
@@ -100,6 +101,7 @@ Slider {
 
                 MaterialIcon {
                     id: icon
+
                     text: root.icon
                     color: Colours.palette.m3inverseOnSurface
                     anchors.centerIn: parent
@@ -109,6 +111,7 @@ Slider {
 
                 StyledText {
                     id: number
+
                     text: Math.round(root.value * 100)
                     color: Colours.palette.m3inverseOnSurface
                     anchors.centerIn: parent

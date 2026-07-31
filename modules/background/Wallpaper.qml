@@ -161,7 +161,8 @@ Item {
                 }
                 // Qt6 has no autoPlay: start once media has loaded. Covers the video->video case
                 // where the Loader keeps one instance and only the source changes.
-                onMediaStatusChanged: if (mediaStatus === MediaPlayer.LoadedMedia || mediaStatus === MediaPlayer.BufferedMedia) play()
+                onMediaStatusChanged: if (mediaStatus === MediaPlayer.LoadedMedia || mediaStatus === MediaPlayer.BufferedMedia)
+                    play()
             }
         }
     }

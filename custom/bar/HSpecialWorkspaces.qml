@@ -97,8 +97,9 @@ Item {
     }
 
     ListView {
-        orientation: ListView.Horizontal
         id: view
+
+        orientation: ListView.Horizontal
 
         anchors.fill: parent
         // [fork] A normál workspace-sor extraSmall térközt használ, ez a sor
@@ -221,7 +222,6 @@ Item {
                 }
             }
         }
-
     }
 
     MouseArea {
@@ -309,6 +309,7 @@ Item {
 
             Component {
                 id: iconComp
+
                 MaterialIcon {
                     fill: 1
                     text: ws.icon
@@ -318,6 +319,7 @@ Item {
 
             Component {
                 id: letterComp
+
                 StyledText {
                     text: ws.icon
                     horizontalAlignment: Qt.AlignHCenter
