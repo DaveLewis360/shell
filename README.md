@@ -20,11 +20,12 @@ restarting the shell.
 > [soramanew](https://github.com/soramanew) and the caelestia contributors.
 > Licensed under GPL-3.0, same as upstream.
 
-## Screenshots
+<!--
+  Screenshots go here. Drop the files in and uncomment:
 
-<!-- SCREENSHOT-HORIZONTAL -->
-
-<!-- SCREENSHOT-VERTICAL -->
+  ![Horizontal bar](assets/screenshots/horizontal-bar.png)
+  ![Vertical bar](assets/screenshots/vertical-bar.png)
+-->
 
 ## What this fork adds
 
