@@ -24,7 +24,14 @@ ColumnLayout {
             return;
 
         for (let i = 0; i < repeater.count; i++) {
-            const tray = (repeater.itemAt(i) as EntryWrapper).item as Tray;
+            // [fork] A null-ellenőrzés azért kell, mert a Config.bar.entries lista
+            // olyan id-t is tartalmazhat, amire ENNEK a barnak nincs delegate-je —
+            // ilyenkor a DelegateChooser nem hoz létre elemet, és az itemAt(i) null.
+            // A closeTray()-t szinte minden bar-interakció hívja (checkPopout,
+            // Interactions, focus grab), ezért egy ilyen bejegyzés minden mozdulatnál
+            // TypeError-t dobott és megszakította a függvényt.
+            const entry = repeater.itemAt(i) as EntryWrapper;
+            const tray = entry?.item as Tray;
             if (tray)
                 tray.expanded = false;
         }
@@ -107,7 +114,11 @@ ColumnLayout {
         id: repeater
 
         model: ScriptModel {
-            values: root.Config.bar.entries.filter(e => e.enabled ?? true)
+            // [fork] A "miniDash" a fork saját eleme, és csak a vízszintes barnak
+            // (custom/bar/HBar.qml) van rá delegate-je. Itt ki kell szűrni, különben
+            // a Repeater egy üres helyet tart neki, az itemAt(i) null lesz, és az
+            // ezen a listán végigmenő upstream kód elhasal.
+            values: root.Config.bar.entries.filter(e => (e.enabled ?? true) && e.id !== "miniDash")
         }
 
         DelegateChooser {

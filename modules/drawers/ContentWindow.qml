@@ -286,7 +286,7 @@ StyledWindow {
                 y: bar.y + (bar.implicitHeight - modelData.h) / 2
                 implicitWidth: modelData.w
                 implicitHeight: modelData.h
-                radius: Tokens.rounding.full
+                radius: modelData.r
                 color: Qt.alpha(root.surfaceColour, 1)
             }
         }

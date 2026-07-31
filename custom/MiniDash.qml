@@ -107,7 +107,10 @@ Item {
         anchors.fill: parent
 
         color: ExtrasConfig.barIslands ? "transparent" : Colours.tPalette.m3surfaceContainer
-        radius: Tokens.rounding.full
+
+        // A nagy dashboardhoz igazodik: a PanelBg is Tokens.rounding.extraLarge-ot
+        // használ, így a pill és a kinyíló dashboard formája egy nyelvet beszél.
+        radius: Tokens.rounding.extraLarge
 
         // Swipe View for Pages
         ListView {

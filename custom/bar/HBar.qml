@@ -70,7 +70,11 @@ RowLayout {
             out.push({
                 x: entry.x,
                 w: entry.width,
-                h: entry.height
+                h: entry.height,
+                // A MiniDash a dashboard lekerekítését követi (Tokens.rounding
+                // .extraLarge — ugyanaz, amit a PanelBg használ), a workspaces
+                // jelző viszont kapszula marad, mert upstreamben is az.
+                r: id === "miniDash" ? Tokens.rounding.extraLarge : Tokens.rounding.full
             });
         }
         return out;
@@ -119,7 +123,10 @@ RowLayout {
             return;
 
         for (let i = 0; i < repeater.count; i++) {
-            const tray = (repeater.itemAt(i) as EntryWrapper).item as HTray;
+            // Ugyanaz a null-védelem, mint a vertikális Bar.qml-ben: a lista
+            // tartalmazhat olyan id-t, amire itt nincs delegate.
+            const entry = repeater.itemAt(i) as EntryWrapper;
+            const tray = entry?.item as HTray;
             if (tray)
                 tray.expanded = false;
         }
