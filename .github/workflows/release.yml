@@ -1,9 +1,20 @@
 name: Create release
 
+# ── Fork note (DaveLewis360/shell) ───────────────────────────────────────────
+# Manual-only in this fork. Upstream triggers this on `push: tags: v*`, which is
+# wrong here: the v* tags in this repository are upstream's version markers,
+# mirrored so that `git describe` works and CMake can derive a version — a fresh
+# clone without them fails to configure with a CMake FATAL_ERROR. They are not
+# releases of this fork.
+#
+# Left on the push trigger, mirroring upstream tags would publish a GitHub
+# release per upstream version and force-push a `stable` branch on every one of
+# them. Keep it manual, and only dispatch it for a tag that really is a fork
+# release.
+# ─────────────────────────────────────────────────────────────────────────────
+
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
 
 jobs:
   build-and-release:
@@ -36,7 +47,7 @@ jobs:
             caelestia-shell-${{ github.ref_name }}.tar.gz
             caelestia-shell-latest.tar.gz
           generate_release_notes: true
-      
+
       - name: Update stable branch
         run: |
           git branch -f stable "$GITHUB_SHA"

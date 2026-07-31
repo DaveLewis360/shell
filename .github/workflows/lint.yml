@@ -1,17 +1,44 @@
 name: Lint code
 
+# ── Fork note (DaveLewis360/shell) ───────────────────────────────────────────
+# This job is manual-only in this fork. It is NOT run on push or pull_request.
+#
+# Why: unlike formatting, qmllint needs a fully built shell — it compiles the
+# C++ plugin with clazy and then runs `qs -p .` to generate .qmlls.ini so the
+# linter can resolve imports. That requires Qt 6 development packages, clazy,
+# and a Quickshell installation (AUR-only). Upstream ships all of that in a
+# prebuilt container image, ghcr.io/caelestia-dots/shell-arch-env:latest, which
+# is not publicly readable — pulling it returns HTTP 403. This fork does not
+# publish its own replacement, so the job failed in ~14 seconds on every push
+# and generated a failure notification each time without ever testing the code.
+#
+# What replaces it: `fork-check` (scripts/fork-check in the dotfiles repo) runs
+# the same qmllint against a real local build, plus qmlformat, clang-format, the
+# fork's QML conventions, and an actual shell load test. That is the gate the
+# fork is held to before pushing.
+#
+# To re-enable automatic runs you need a container image with the build
+# environment. Build one from .github/workflows/update-image.yml in upstream,
+# push it to your own GHCR namespace, then either pass it via the `image` input
+# below or restore the `push`/`pull_request` triggers with that image hardcoded.
+# ─────────────────────────────────────────────────────────────────────────────
+
 on:
-  push:
-    branches:
-      - main
-  pull_request:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: >-
+          Container image containing the build environment (Qt 6 dev, clazy,
+          Quickshell). The upstream default is not publicly pullable.
+        required: false
+        default: ghcr.io/caelestia-dots/shell-arch-env:latest
 
 jobs:
   lint:
     runs-on: ubuntu-latest
 
     container:
-      image: ghcr.io/${{ github.repository_owner }}/shell-arch-env:latest
+      image: ${{ inputs.image }}
 
     steps:
       - uses: actions/checkout@v6

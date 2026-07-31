@@ -1,40 +1,84 @@
 name: Check formatting
 
+# ── Fork note (DaveLewis360/shell) ───────────────────────────────────────────
+# Upstream runs this job inside a prebuilt container image,
+# ghcr.io/${{ github.repository_owner }}/shell-arch-env:latest, which was
+# produced by .github/workflows/update-image.yml.
+#
+# That does not work in this fork:
+#   * ghcr.io/DaveLewis360/shell-arch-env does not exist — update-image.yml was
+#     removed here, since republishing upstream's build environment is not this
+#     fork's job.
+#   * ghcr.io/caelestia-dots/shell-arch-env:latest is not publicly readable
+#     (pulling it returns HTTP 403), so it cannot be borrowed either.
+#
+# The job therefore failed in ~14 seconds on every push, regardless of the code.
+# Formatting checks need no compiler and no Quickshell runtime, so this fork
+# starts from the official public Arch base image and installs only the
+# formatters. See .github/workflows/lint.yml for the check that genuinely does
+# need a full build environment.
+# ─────────────────────────────────────────────────────────────────────────────
+
 on:
   push:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
 
 jobs:
   check-qml:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/${{ github.repository_owner }}/shell-arch-env:latest
+      image: archlinux:latest
 
     steps:
+      # qt6-declarative provides /usr/lib/qt6/bin/qmlformat.
+      # git is needed by actions/checkout; diffutils/findutils are in base.
+      - name: Install tools
+        run: pacman -Syu --noconfirm --needed git python qt6-declarative
+
       - uses: actions/checkout@v6
 
-      - name: Check QML format
-        shell: fish {0}
+      - name: Check QML formatting
         run: |
           /usr/lib/qt6/bin/qmlformat --version
-          for file in (string match -v 'build/*' **.qml)
-            /usr/lib/qt6/bin/qmlformat $file | diff -u $file - || exit 1
-          end
-          python3 scripts/qml-lint-conventions.py
+
+          # Report every offending file instead of stopping at the first one,
+          # so a single CI run tells you everything that needs reformatting.
+          status=0
+          while IFS= read -r -d '' file; do
+            if ! /usr/lib/qt6/bin/qmlformat "$file" \
+                 | diff -u --label "$file" --label "$file (qmlformat)" "$file" -; then
+              status=1
+            fi
+          done < <(find . -type f -name '*.qml' -not -path './build/*' -print0)
+
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Some QML files are not formatted. Run: qmlformat -i <file>"
+          fi
+          exit "$status"
+
+      # Fork-local house style (see scripts/qml-lint-conventions.py). Advisory
+      # on purpose: --fix reorders declarations, which has already changed QML
+      # semantics once, so these are worked through by hand.
+      - name: Check QML conventions
+        continue-on-error: true
+        run: python3 scripts/qml-lint-conventions.py
 
   check-cpp:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/${{ github.repository_owner }}/shell-arch-env:latest
+      image: archlinux:latest
 
     steps:
+      - name: Install tools
+        run: pacman -Syu --noconfirm --needed git clang
+
       - uses: actions/checkout@v6
 
-      - name: Check C++ format
-        shell: fish {0}
+      - name: Check C++ formatting
         run: |
           clang-format --version
-          find plugin extras -name '*.cpp' -o -name '*.hpp' \
-            | xargs clang-format --dry-run --Werror
+          find plugin extras -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 \
+            | xargs -0 --no-run-if-empty clang-format --dry-run --Werror
