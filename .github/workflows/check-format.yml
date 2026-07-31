@@ -34,14 +34,20 @@ jobs:
 
     steps:
       # qt6-declarative provides /usr/lib/qt6/bin/qmlformat.
-      # git is needed by actions/checkout; diffutils/findutils are in base.
+      # git is needed by actions/checkout.
+      # diffutils is NOT part of the base image — without it `diff` is missing
+      # and every file appears unformatted (verified in archlinux:latest).
       - name: Install tools
-        run: pacman -Syu --noconfirm --needed git python qt6-declarative
+        run: pacman -Syu --noconfirm --needed diffutils git python qt6-declarative
 
       - uses: actions/checkout@v6
 
       - name: Check QML formatting
         run: |
+          # Fail with a readable message if a tool is missing. Without this, a
+          # missing `diff` reports every file as unformatted instead.
+          command -v diff >/dev/null \
+            || { echo "::error::diff not found — install diffutils"; exit 1; }
           /usr/lib/qt6/bin/qmlformat --version
 
           # Report every offending file instead of stopping at the first one,
