@@ -248,11 +248,11 @@ Item {
 
                                 StyledText {
                                     text: Math.round(Cpu.percentage * 100) + "%"
-                                    font: Tokens.font.mono.builders.medium.weight(Font.Bold).build()
+                                    font: Tokens.font.body.builders.medium.weight(Font.Bold).build()
                                 }
                                 StyledText {
                                     text: Math.round(Cpu.temperature) + "°C"
-                                    font: Tokens.font.mono.small
+                                    font: Tokens.font.body.small
                                     color: Cpu.temperature > root.tempWarnC ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
                                 }
                             }
@@ -281,11 +281,11 @@ Item {
 
                                 StyledText {
                                     text: Math.round(Memory.percentage * 100) + "%"
-                                    font: Tokens.font.mono.builders.medium.weight(Font.Bold).build()
+                                    font: Tokens.font.body.builders.medium.weight(Font.Bold).build()
                                 }
                                 StyledText {
                                     text: (Memory.used / 1024 / 1024).toFixed(1) + "G"
-                                    font: Tokens.font.mono.small
+                                    font: Tokens.font.body.small
                                     color: Colours.palette.m3onSurfaceVariant
                                 }
                             }
@@ -314,11 +314,11 @@ Item {
 
                                 StyledText {
                                     text: Math.round((Storage.primaryDisk?.perc ?? 0) * 100) + "%"
-                                    font: Tokens.font.mono.builders.medium.weight(Font.Bold).build()
+                                    font: Tokens.font.body.builders.medium.weight(Font.Bold).build()
                                 }
                                 StyledText {
                                     text: "DISK"
-                                    font: Tokens.font.mono.small
+                                    font: Tokens.font.body.small
                                     color: Colours.palette.m3onSurfaceVariant
                                 }
                             }
@@ -349,11 +349,11 @@ Item {
 
                                 StyledText {
                                     text: Math.round(Gpu.percentage * 100) + "%"
-                                    font: Tokens.font.mono.builders.medium.weight(Font.Bold).build()
+                                    font: Tokens.font.body.builders.medium.weight(Font.Bold).build()
                                 }
                                 StyledText {
                                     text: Math.round(Gpu.temperature) + "°C"
-                                    font: Tokens.font.mono.small
+                                    font: Tokens.font.body.small
                                     color: Gpu.temperature > root.tempWarnC ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
                                 }
                             }
@@ -527,7 +527,7 @@ Item {
             Layout.alignment: Qt.AlignHCenter
             text: `${Math.round(metric.value * 100)}%`
             color: metric.colour
-            font: Tokens.font.mono.builders.small.weight(Font.Bold).build()
+            font: Tokens.font.body.builders.small.weight(Font.Bold).build()
         }
     }
 
