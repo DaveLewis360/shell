@@ -5,6 +5,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Shapes
 import QtQml.Models as QtModels
+import qs.custom
 import Quickshell
 import Quickshell.Services.Mpris
 import Caelestia.Config
@@ -98,14 +99,14 @@ Item {
     StyledRect {
         id: bg
 
-        // [fork] Ugyanaz a minta, mint az upstream workspaces pillnél: a kontroll
-        // a bar felületénél egy fokkal világosabb m3surfaceContainer-t használ,
-        // ezért külön elemként olvasható — és ugyanúgy működik folyamatos és
-        // szigetes háttéren is, mert nem a bar színét ismétli. Korábban m3surface
-        // volt, ami szigetes módban egybeolvadt a sáv hátterével.
+        // [fork] Ugyanaz a logika, mint a workspaces pillnél (HWorkspaces.qml):
+        // folyamatos módban a pill maga festi a hátterét m3surfaceContainer-rel,
+        // szigetes módban viszont a ContentWindow fest alá tömör szigetet, és két
+        // réteg egymáson világosabb lenne a bar jobb oldalánál. Szigetes módban
+        // ezért a sziget adja a felületet.
         anchors.fill: parent
 
-        color: Colours.tPalette.m3surfaceContainer
+        color: ExtrasConfig.barIslands ? "transparent" : Colours.tPalette.m3surfaceContainer
         radius: Tokens.rounding.full
 
         // Swipe View for Pages

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import "../../modules/bar/components"
 import "../../modules/bar/components/workspaces"
+import qs.custom
 import QtQuick
 import QtQuick.Effects
 import QtQuick.Layouts
@@ -43,13 +44,16 @@ StyledClippingRect {
         Anim {}
     }
 
-    // [fork] Upstream: Colours.tPalette.m3surfaceContainer. Ez korábban
-    // "transparent"-re volt állítva, és helyette a ContentWindow festett alá egy
-    // sziget-téglalapot — csakhogy az a bar felületének SZÍNÉVEL (m3surface),
-    // ezért a workspace-jelző háttere pontosan egybeolvadt a sáv hátterével, és
-    // a jelző eltűnt. Upstreamben a pill maga festi magát, egy fokkal világosabb
-    // m3surfaceContainer színnel — ezért látszik. Visszaállítva.
-    color: Colours.tPalette.m3surfaceContainer
+    // [fork] Folyamatos módban a pill maga festi a hátterét, ahogy upstreamben:
+    // m3surfaceContainer, ami egy fokkal világosabb a bar felületénél, ezért külön
+    // kontrollként olvasható a folyamatos sávon.
+    //
+    // Szigetes módban viszont a ContentWindow már fest alá egy TÖMÖR szigetet
+    // (ugyanazt, mint a bar jobb oldali blokkja és a panelek háttere). Ha a pill
+    // ilyenkor is festene, két réteg kerülne egymásra — az áttetsző container a
+    // tömör felületen —, és a bal oldal világosabb lenne a jobbnál. Ezért szigetes
+    // módban a sziget adja a felületet, a pill átlátszó.
+    color: ExtrasConfig.barIslands ? "transparent" : Colours.tPalette.m3surfaceContainer
 
     radius: Tokens.rounding.full
 
