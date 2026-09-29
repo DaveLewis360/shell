@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Caelestia.Config
 import qs.components
 import qs.services
 
@@ -10,9 +11,10 @@ RowLayout {
     required property color colour
     required property int parentSpacing
 
-    property real gap: Hypr.capsLock && Hypr.numLock ? parentSpacing : 0
+    readonly property bool numLockShown: Hypr.numLock && GlobalConfig.fork.bar.showNumLock
+    property real gap: Hypr.capsLock && numLockShown ? parentSpacing : 0
     property real capsWidth: Hypr.capsLock ? capslockIcon.implicitWidth : 0
-    property real numWidth: Hypr.numLock ? numlockIcon.implicitWidth : 0
+    property real numWidth: numLockShown ? numlockIcon.implicitWidth : 0
 
     spacing: Math.round(gap)
 
@@ -72,8 +74,8 @@ RowLayout {
 
             anchors.centerIn: parent
 
-            scale: Hypr.numLock ? 1 : 0.5
-            opacity: Hypr.numLock ? 1 : 0
+            scale: root.numLockShown ? 1 : 0.5
+            opacity: root.numLockShown ? 1 : 0
 
             text: "looks_one"
             color: root.colour
