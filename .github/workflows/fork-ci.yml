@@ -1,0 +1,54 @@
+name: Fork checks
+
+# The fork's own checks. Upstream's workflows expect upstream's CI image and are
+# disabled in this repository (gh workflow disable), so only files the fork
+# touches are checked here, with the same tools upstream uses.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+
+    steps:
+      - name: Install tools
+        run: pacman -Syu --noconfirm --needed git qt6-declarative clang python diffutils
+
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find the files the fork changed
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          # The newest upstream release tag, not a fork tag like v2.5.0.1
+          base=$(git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude 'v*.*.*.*')
+          echo "Base: $base"
+          git diff --name-only --diff-filter=d "$base" HEAD > changed.txt
+          cat changed.txt
+
+      - name: QML formatting
+        run: |
+          fail=0
+          for f in $(grep '\.qml$' changed.txt); do
+            /usr/lib/qt6/bin/qmlformat "$f" | diff -u "$f" - || fail=1
+          done
+          exit $fail
+
+      - name: QML conventions
+        run: |
+          fail=0
+          for f in $(grep '\.qml$' changed.txt); do
+            python3 scripts/qml-lint-conventions.py --file "$f" || fail=1
+          done
+          exit $fail
+
+      - name: C++ formatting
+        run: |
+          files=$(grep -E '^(plugin|extras)/.*\.(cpp|hpp)$' changed.txt || true)
+          [ -z "$files" ] || clang-format --dry-run --Werror $files
