@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
 import qs.modules.nexus.common
+import qs.custom.nexus // [fork]
 
 PageBase {
     id: root
@@ -47,6 +48,20 @@ PageBase {
             to: 200
             stepSize: 5
             onMoved: v => GlobalConfig.bar.dragThreshold = v
+        }
+
+        // [fork] Position
+        SectionHeader {
+            text: Tr.tr("Position")
+        }
+
+        ToggleRow {
+            first: true
+            last: true
+            text: Tr.tr("Horizontal bar")
+            subtext: Tr.tr("Place the bar along the top edge of the screen")
+            checked: GlobalConfig.fork.bar.horizontal
+            onToggled: GlobalConfig.fork.bar.horizontal = checked
         }
 
         // Components
