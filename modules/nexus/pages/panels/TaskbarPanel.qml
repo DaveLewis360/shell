@@ -49,6 +49,20 @@ PageBase {
             onMoved: v => GlobalConfig.bar.dragThreshold = v
         }
 
+        // [fork] Position
+        SectionHeader {
+            text: Tr.tr("Position")
+        }
+
+        ToggleRow {
+            first: true
+            last: true
+            text: Tr.tr("Horizontal bar")
+            subtext: Tr.tr("Place the bar along the top edge of the screen")
+            checked: GlobalConfig.fork.bar.horizontal
+            onToggled: GlobalConfig.fork.bar.horizontal = checked
+        }
+
         // Components
         SectionHeader {
             text: Tr.tr("Components")
