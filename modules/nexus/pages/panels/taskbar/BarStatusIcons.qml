@@ -95,5 +95,19 @@ PageBase {
             checked: Config.bar.popouts.statusIcons
             onToggled: GlobalConfig.bar.popouts.statusIcons = checked
         }
+
+        // [fork] Lock keys
+        SectionHeader {
+            text: Tr.tr("Lock keys")
+        }
+
+        ToggleRow {
+            first: true
+            last: true
+            text: Tr.tr("Num Lock indicator")
+            subtext: Tr.tr("Show an icon while Num Lock is on")
+            checked: GlobalConfig.fork.bar.showNumLock
+            onToggled: GlobalConfig.fork.bar.showNumLock = checked
+        }
     }
 }
