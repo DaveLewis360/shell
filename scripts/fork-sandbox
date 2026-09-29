@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+# fork-sandbox: run this checkout in a throwaway nested Hyprland.
+#
+# The shell gets its own XDG config/state/cache/data dirs, its own D-Bus session and
+# a logging stub instead of the caelestia CLI, so it cannot touch the live shell,
+# ~/.config/caelestia/shell.json, any state file or the open terminals. The current colour scheme and wallpaper are copied in read-only, and fonts
+# and desktop entries are linked in, so screenshots look like the real thing.
+#
+# Usage:
+#   scripts/fork-sandbox [--config shell.json] [--time SEC] [--keep] [--shot FILE]
+#
+#   --config FILE  shell.json to start from (default: empty, i.e. upstream defaults)
+#   --with FILE    another file to copy into the sandbox's caelestia config dir
+#                  (e.g. an old fork's extras.json); repeatable
+#   --repo DIR     run another checkout instead of this one (it must be built),
+#                  e.g. to compare with an older version side by side
+#   --time SEC     how long to let the shell run before the screenshot (default: 8)
+#   --shot FILE    screenshot path (default: <sandbox>/shot.png)
+#   --ipc "T F.."  run `qs ipc call T F ..` before the screenshot; repeatable,
+#                  e.g. --ipc "drawers toggle dashboard" or --ipc "nexus open"
+#   --keep         leave the nested session running; stop it with --stop
+#   --stop         kill a session left running by --keep
+#
+# FORK_SANDBOX_QML_PATH adds QML import dirs after the build, e.g. for an
+# M3Shapes build that is not installed system-wide.
+#
+# Exit status: 0 if the log has no QML errors, 1 if it has, 2 on setup failure.
+# Build first (scripts/../build/qml must exist).
+
+set -euo pipefail
+
+repo=$(cd "$(dirname "$0")/.." && pwd)
+root="${FORK_SANDBOX_DIR:-${XDG_RUNTIME_DIR:-/tmp}/fork-sandbox}"
+config="" wait_s=8 keep=0 shot="" ipcs=() withs=()
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --config) config=$(realpath "$2"); shift 2 ;;
+        --time) wait_s="$2"; shift 2 ;;
+        --shot) shot=$(realpath -m "$2"); shift 2 ;;
+        --ipc) ipcs+=("$2"); shift 2 ;;
+        --with) withs+=("$(realpath "$2")"); shift 2 ;;
+        --repo) repo=$(realpath "$2"); shift 2 ;;
+        --keep) keep=1; shift ;;
+        --stop)
+            [[ -f "$root/pids" ]] && xargs -r kill <"$root/pids" 2>/dev/null
+            rm -f "$root/pids"
+            exit 0
+            ;;
+        -h | --help) sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        *) echo "unknown option: $1" >&2; exit 2 ;;
+    esac
+done
+
+die() { echo "fork-sandbox: $*" >&2; exit 2; }
+
+[[ -d "$repo/build/qml" ]] || die "no build at $repo/build/qml, build first"
+[[ -n "${WAYLAND_DISPLAY:-}" ]] || die "needs a running Wayland session to nest in"
+command -v Hyprland >/dev/null || die "Hyprland not found"
+command -v qs >/dev/null || die "qs not found"
+[[ -f "$root/pids" ]] && die "a session is still running, use --stop first"
+
+rm -rf "$root"
+mkdir -p "$root"/{config/caelestia,state/caelestia,cache,data,bin}
+chmod 700 "$root"
+
+# The caelestia CLI themes things outside the XDG dirs (it writes colour sequences
+# to every open terminal), so the sandboxed shell gets a stub that only logs calls.
+printf '#!/bin/sh\nprintf "%%s\\n" "caelestia $*" >>"%s/cli.log"\n' "$root" >"$root/bin/caelestia"
+chmod +x "$root/bin/caelestia"
+shot="${shot:-$root/shot.png}"
+
+# Read-only context from the live session, so colours and wallpaper are realistic.
+live_state="${XDG_STATE_HOME:-$HOME/.local/state}/caelestia"
+[[ -f "$live_state/scheme.json" ]] && cp "$live_state/scheme.json" "$root/state/caelestia/"
+if [[ -f "$live_state/wallpaper/path.txt" ]]; then
+    mkdir -p "$root/state/caelestia/wallpaper"
+    cp "$live_state/wallpaper/path.txt" "$root/state/caelestia/wallpaper/"
+fi
+live_data="${XDG_DATA_HOME:-$HOME/.local/share}"
+for d in fonts icons applications; do
+    [[ -d "$live_data/$d" ]] && ln -s "$live_data/$d" "$root/data/$d"
+done
+[[ -n "$config" ]] && cp "$config" "$root/config/caelestia/shell.json"
+for f in "${withs[@]}"; do
+    cp "$f" "$root/config/caelestia/"
+done
+
+cat >"$root/hyprland.lua" <<'EOF'
+-- The screenshot is taken from a headless output with a fixed size, so the
+-- result does not depend on how big the nested window happens to be.
+hl.monitor({ output = "SANDBOX", mode = "1920x1200", position = "0x0", scale = 1 })
+hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
+hl.config({
+    misc = { disable_hyprland_logo = true, disable_splash_rendering = true, disable_watchdog_warning = true },
+    animations = { enabled = false },
+    -- Screenshots are compared pixel by pixel; a pointer would only add noise
+    cursor = { invisible = true },
+})
+EOF
+
+# Nested compositor. It inherits the outer WAYLAND_DISPLAY, which makes it pick
+# the Wayland backend and open as a window.
+env -u HYPRLAND_INSTANCE_SIGNATURE Hyprland -c "$root/hyprland.lua" >"$root/hyprland.log" 2>&1 &
+hypr_pid=$!
+echo "$hypr_pid" >"$root/pids"
+
+instance="" socket=""
+for _ in $(seq 50); do
+    sleep 0.2
+    read -r instance socket < <(hyprctl instances -j 2>/dev/null |
+        python3 -c 'import json,sys
+for i in json.load(sys.stdin):
+    if i["pid"] == int(sys.argv[1]): print(i["instance"], i["wl_socket"])' "$hypr_pid") || true
+    [[ -n "$instance" ]] && break
+done
+if [[ -z "$instance" ]]; then
+    kill "$hypr_pid" 2>/dev/null || true
+    rm -f "$root/pids"
+    die "nested Hyprland did not come up, see $root/hyprland.log"
+fi
+hyprctl -i "$instance" output create headless SANDBOX >/dev/null ||
+    echo "fork-sandbox: could not add the headless output" >&2
+# Only the headless output stays on. The nested window's output changes whenever the
+# outer compositor retiles it, which a shell sees as a screen going away.
+hyprctl -i "$instance" eval 'hl.monitor({ output = "WAYLAND-1", disabled = true })' >/dev/null ||
+    echo "fork-sandbox: could not disable the window output" >&2
+sleep 0.5
+
+# The shell. QML_IMPORT_PATH is replaced, not extended, so a live session's
+# import path can never leak the wrong plugin build in.
+env -u QML2_IMPORT_PATH \
+    QML_IMPORT_PATH="$repo/build/qml${FORK_SANDBOX_QML_PATH:+:$FORK_SANDBOX_QML_PATH}" \
+    XDG_CONFIG_HOME="$root/config" \
+    XDG_STATE_HOME="$root/state" \
+    XDG_CACHE_HOME="$root/cache" \
+    XDG_DATA_HOME="$root/data" \
+    WAYLAND_DISPLAY="$socket" \
+    HYPRLAND_INSTANCE_SIGNATURE="$instance" \
+    PATH="$root/bin:$PATH" \
+    dbus-run-session -- qs -p "$repo" >"$root/shell.log" 2>&1 &
+echo "$!" >>"$root/pids"
+
+sleep "$wait_s"
+# IPC acts on the focused monitor, which must be the one that is photographed. The
+# pointer goes to the middle, away from every hover zone, so hover state is the same
+# in every run.
+hyprctl -i "$instance" dispatch 'hl.dsp.focus({ monitor = "SANDBOX" })' >/dev/null
+hyprctl -i "$instance" dispatch 'hl.dsp.cursor.move({ x = 960, y = 600 })' >/dev/null
+for call in "${ipcs[@]}"; do
+    # shellcheck disable=SC2086 # the call is split into target, function and args on purpose
+    WAYLAND_DISPLAY="$socket" qs -p "$repo" ipc call $call >>"$root/ipc.log" 2>&1 ||
+        echo "fork-sandbox: ipc call failed: $call" >&2
+done
+[[ ${#ipcs[@]} -gt 0 ]] && sleep 2
+WAYLAND_DISPLAY="$socket" grim -o SANDBOX "$shot" 2>/dev/null || echo "fork-sandbox: screenshot failed" >&2
+
+# The log is checked as it was before teardown: when the compositor goes away every
+# screen becomes null, and the shell logs a burst of errors that mean nothing.
+cp "$root/shell.log" "$root/shell.run.log"
+
+if [[ "$keep" -eq 0 ]]; then
+    xargs -r kill <"$root/pids" 2>/dev/null || true
+    rm -f "$root/pids"
+    sleep 0.5
+fi
+
+echo "log:        $root/shell.log (checked: shell.run.log)"
+echo "screenshot: $shot"
+[[ "$keep" -eq 1 ]] && echo "running:    WAYLAND_DISPLAY=$socket HYPRLAND_INSTANCE_SIGNATURE=$instance (stop with --stop)"
+
+# QML errors worth failing on. Hyprland/D-Bus noise from the sandbox is ignored.
+pattern='TypeError|ReferenceError|is not a type|is not defined|non-existent property|Cannot assign|Unable to assign|Type .* unavailable|failed to load component|Cannot read property'
+if grep -Eq "$pattern" "$root/shell.run.log"; then
+    echo "QML errors:"
+    grep -E "$pattern" "$root/shell.run.log" | sed 's/^/  /' | sort | uniq -c | sort -rn | head -40
+    exit 1
+fi
+echo "no QML errors"
