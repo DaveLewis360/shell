@@ -15,16 +15,20 @@ Region {
     readonly property real borderThickness: win.contentItem.Config.border.thickness
     readonly property real clampedThickness: win.contentItem.Config.border.clampedThickness
 
-    x: bar.clampedWidth + win.dragMaskPadding
-    y: clampedThickness + win.dragMaskPadding
-    width: win.width - bar.clampedWidth - clampedThickness - win.dragMaskPadding * 2
-    height: win.height - clampedThickness * 2 - win.dragMaskPadding * 2
+    // [fork] The bar takes the left edge, or the top one when horizontal
+    readonly property real leftEdge: bar.horizontal ? clampedThickness : bar.clampedWidth
+    readonly property real topEdge: bar.horizontal ? bar.clampedWidth : clampedThickness
+
+    x: leftEdge + win.dragMaskPadding
+    y: topEdge + win.dragMaskPadding
+    width: win.width - leftEdge - clampedThickness - win.dragMaskPadding * 2
+    height: win.height - topEdge - clampedThickness - win.dragMaskPadding * 2
     intersection: Intersection.Xor
 
     R {
         panel: root.panels.dashboard
         y: 0
-        height: panel.height * (1 - root.panels.dashboard.offsetScale) + root.borderThickness
+        height: (panel.height - root.panels.dashboard.barOverlap) * (1 - root.panels.dashboard.offsetScale) + root.bar.topInset(root.borderThickness) // [fork]
     }
 
     R {
@@ -58,7 +62,7 @@ Region {
     R {
         panel: root.panels.notifications
         y: 0
-        height: panel.height + root.borderThickness
+        height: panel.height + root.bar.topInset(root.borderThickness) // [fork]
     }
 
     R {
@@ -69,14 +73,16 @@ Region {
 
     R {
         panel: root.panels.popoutsWrapper
-        width: panel.width * (1 - root.panels.popoutsWrapper.offsetScale)
+        // [fork] A popout under a top bar collapses vertically
+        width: panel.width * (root.bar.horizontal ? 1 : 1 - root.panels.popoutsWrapper.offsetScale)
+        height: panel.height * (root.bar.horizontal ? 1 - root.panels.popoutsWrapper.offsetScale : 1)
     }
 
     component R: Region {
         required property Item panel
 
-        x: panel.x + root.bar.implicitWidth
-        y: panel.y + root.borderThickness
+        x: panel.x + root.bar.leftInset(root.borderThickness) // [fork]
+        y: panel.y + root.bar.topInset(root.borderThickness) // [fork]
         width: panel.width
         height: panel.height
         intersection: Intersection.Subtract

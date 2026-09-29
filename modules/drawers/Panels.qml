@@ -36,7 +36,8 @@ Item {
 
     anchors.fill: parent
     anchors.margins: borderThickness
-    anchors.leftMargin: bar.implicitWidth
+    anchors.leftMargin: bar.leftInset(borderThickness) // [fork]
+    anchors.topMargin: bar.topInset(borderThickness) // [fork]
 
     Item {
         id: osdWrapper
@@ -111,6 +112,7 @@ Item {
         id: dashboard
 
         screenState: root.screenState
+        barOverlap: root.bar.topInset(root.borderThickness) - root.borderThickness // [fork]
 
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
