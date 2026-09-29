@@ -41,6 +41,10 @@ Small fixes for things upstream does not handle yet, each its own commit:
 - **Num Lock indicator**: `fork.bar.showNumLock: false` (Nexus → Panels →
   Taskbar → Status icons → Lock keys) hides the Num Lock icon, for keyboards
   that keep Num Lock on. Caps Lock still shows.
+- **Cover art**: covers keep the last art that loaded instead of blinking out
+  between tracks. Local art files are copied into `~/.cache/caelestia/covers`,
+  so a browser deleting them (Firefox-based browsers and their web apps wipe each
+  other's) no longer breaks the cover (`custom/media/CoverArtCache`).
 
 ## Licence
 

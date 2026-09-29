@@ -9,6 +9,7 @@ import qs.components.controls
 import qs.components.effects
 import qs.components.images
 import qs.services
+import qs.custom.media // [fork]
 
 Item {
     id: root
@@ -97,7 +98,7 @@ Item {
 
         anchors.fill: parent
 
-        source: Players.getArtUrl(Players.active)
+        source: CoverArtCache.url // [fork] keeps the last cover that loaded
 
         layer.enabled: true
         layer.effect: Mask {
