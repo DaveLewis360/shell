@@ -8,6 +8,7 @@ import qs.components
 import qs.components.controls
 import qs.components.images
 import qs.services
+import qs.custom.media // [fork]
 
 StyledClippingRect {
     id: root
@@ -20,7 +21,7 @@ StyledClippingRect {
 
     FadeImage {
         anchors.fill: parent
-        source: Players.getArtUrl(Players.active)
+        source: CoverArtCache.url // [fork] keeps the last cover that loaded
 
         asynchronous: true
         fillMode: Image.PreserveAspectCrop

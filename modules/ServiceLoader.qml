@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Caelestia.Config
 import qs.services
+import qs.custom.media // [fork]
 
 Scope {
     Component.onCompleted: {
@@ -11,6 +12,7 @@ Scope {
         GameMode;
         Notifs;
         Players;
+        CoverArtCache; // [fork] copies art files before a browser deletes them
         Brightness;
         Weather.reload();
 
