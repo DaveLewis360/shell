@@ -15,6 +15,8 @@ qml_module(caelestia-config
         backgroundconfig.hpp
         barconfig.hpp
         dashboardconfig.hpp
+        # [fork] fork-only options
+        forkconfig.hpp
         generalconfig.hpp
         launcherconfig.hpp
         lockconfig.hpp

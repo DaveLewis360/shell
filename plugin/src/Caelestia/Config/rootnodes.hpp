@@ -9,6 +9,7 @@
 #include "common.hpp"
 #include "dashboardconfig.hpp"
 #include "font.hpp"
+#include "forkconfig.hpp" // [fork]
 #include "generalconfig.hpp"
 #include "launcherconfig.hpp"
 #include "lockconfig.hpp"
@@ -45,6 +46,7 @@ class ConfigRoot : public settings::RootNode {
     CONFIG_SUBOBJECT(SidebarConfig, sidebar)
     CONFIG_SUBOBJECT(UtilitiesConfig, utilities)
     CONFIG_SUBOBJECT(UserPaths, paths)
+    CONFIG_GLOBAL_SUBOBJECT(ForkConfig, fork) // [fork]
 
 public:
     explicit ConfigRoot(const QString& path, ConfigRoot* fallback = nullptr, QObject* parent = nullptr);
