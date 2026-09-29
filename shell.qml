@@ -14,6 +14,7 @@ import qs.modules.background
 import qs.modules.drawers
 import qs.modules.lock
 import qs.daemons
+import qs.custom.media // [fork]
 
 ShellRoot {
     id: root
@@ -24,6 +25,7 @@ ShellRoot {
         // Force certain singletons to load on shell init instead of lazily
         Notifs;
         Players;
+        CoverArtCache; // [fork] copies art files before a browser deletes them
         Brightness;
         Weather.reload();
 
