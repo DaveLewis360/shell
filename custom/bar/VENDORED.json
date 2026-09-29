@@ -1,0 +1,58 @@
+{
+    "_comment": "Each horizontal component is a port of an upstream file. `blob` is that file at `ref`; when upstream changes it, `git diff <blob> <ref>:<upstream>` shows what to carry over.",
+    "ref": "v2.5.0",
+    "files": {
+        "HActiveWindow.qml": {
+            "upstream": "modules/bar/components/ActiveWindow.qml",
+            "blob": "e23cb6f6dafc904a97a3dce9002c0ed688ef40dc"
+        },
+        "HBar.qml": {
+            "upstream": "modules/bar/Bar.qml",
+            "blob": "1ceb9b6cf43ef3624fa65ef66da4df318c911764"
+        },
+        "HBluetoothStatus.qml": {
+            "upstream": "modules/bar/components/status/BluetoothStatus.qml",
+            "blob": "300ebdf86cc01cd5c72926d3634890d20c0acd9d"
+        },
+        "HClock.qml": {
+            "upstream": "modules/bar/components/Clock.qml",
+            "blob": "8b812edc17fb59878619af9f241f43986959c8e3"
+        },
+        "HLockStatus.qml": {
+            "upstream": "modules/bar/components/status/LockStatus.qml",
+            "blob": "eb6da0d621bcc9dd59fe3302cfcf564c8cf122ca"
+        },
+        "HStatusIcons.qml": {
+            "upstream": "modules/bar/components/StatusIcons.qml",
+            "blob": "90ad09b5d5a9431ab28c51282d990f2ef1d83089"
+        },
+        "HTray.qml": {
+            "upstream": "modules/bar/components/Tray.qml",
+            "blob": "de9aa9512a60b97d9b6863b933bf096d326cd3f6"
+        },
+        "workspaces/HActiveIndicator.qml": {
+            "upstream": "modules/bar/components/workspaces/ActiveIndicator.qml",
+            "blob": "a4501529972565bf0cd5f5d2b00b4c3518204fc3"
+        },
+        "workspaces/HGapMarkers.qml": {
+            "upstream": "modules/bar/components/workspaces/GapMarkers.qml",
+            "blob": "7b57ff43d41f8b958aa1920ad1898ce6801acbb8"
+        },
+        "workspaces/HOccupiedBg.qml": {
+            "upstream": "modules/bar/components/workspaces/OccupiedBg.qml",
+            "blob": "2c484743cdeee92db90662730c551ae73ae1f7d3"
+        },
+        "workspaces/HSpecialWorkspaces.qml": {
+            "upstream": "modules/bar/components/workspaces/SpecialWorkspaces.qml",
+            "blob": "5eb602ff5b5bd054c2246af38d9154bd17c51d87"
+        },
+        "workspaces/HWorkspace.qml": {
+            "upstream": "modules/bar/components/workspaces/Workspace.qml",
+            "blob": "af314c2940d5775dd2dfba58d819b9575f2cf19d"
+        },
+        "workspaces/HWorkspaces.qml": {
+            "upstream": "modules/bar/components/workspaces/Workspaces.qml",
+            "blob": "53523179919aca28dedda5d4b3717f5871eb3ecb"
+        }
+    }
+}

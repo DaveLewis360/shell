@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Caelestia.Config // [fork]
 import qs.components
 import qs.modules.bar.popouts // Need to import this module so the Wrapper type is the same as others
 
@@ -13,6 +14,18 @@ Item {
 
     readonly property alias content: content
     property real offsetScale: x > 0 || content.hasCurrent ? 0 : 1
+
+    // [fork] Position along a top bar, centred on the hovered item and kept on screen
+    function xUnderBar(): real {
+        if (content.isDetached)
+            return (parent.width - content.nonAnimWidth) / 2;
+
+        const off = content.currentCenter - borderThickness - content.nonAnimWidth / 2;
+        const diff = parent.width - Math.floor(off + content.nonAnimWidth);
+        if (diff < 0)
+            return off + diff;
+        return Math.max(off, 0);
+    }
 
     visible: width > 0 && height > 0
     clip: true
@@ -30,6 +43,30 @@ Item {
         if (diff < 0)
             return off + diff;
         return Math.max(off, 0);
+    }
+
+    // [fork] Under a top bar the popout hangs below the hovered item and grows
+    // downwards (custom/bar)
+    states: State {
+        when: GlobalConfig.fork.bar.horizontal
+
+        PropertyChanges {
+            root.offsetScale: root.y > 0 || content.hasCurrent ? 0 : 1
+            root.implicitWidth: content.implicitWidth
+            root.implicitHeight: content.implicitHeight * (1 - root.offsetScale)
+            root.x: root.xUnderBar()
+            root.y: content.isDetached ? (root.parent.height - content.nonAnimHeight) / 2 : 0
+            content.anchors.leftMargin: 0
+            content.anchors.topMargin: (-content.implicitHeight - 5) * root.offsetScale
+        }
+
+        AnchorChanges {
+            target: content
+            anchors.verticalCenter: undefined
+            anchors.left: undefined
+            anchors.horizontalCenter: root.horizontalCenter
+            anchors.top: root.top
+        }
     }
 
     Behavior on offsetScale {

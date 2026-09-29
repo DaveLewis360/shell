@@ -60,7 +60,9 @@ Item {
 
                     anchors.fill: parent
                     anchors.margins: Config.border.thickness
-                    anchors.leftMargin: (ShellState.componentsFor(root.screen)?.bar?.exclusiveZone ?? 0) + Tokens.spacing.small * Config.background.visualiser.spacing
+                    // [fork] A top bar takes its space from the top instead
+                    anchors.leftMargin: (GlobalConfig.fork.bar.horizontal ? Config.border.thickness : ShellState.componentsFor(root.screen)?.bar?.exclusiveZone ?? 0) + Tokens.spacing.small * Config.background.visualiser.spacing
+                    anchors.topMargin: GlobalConfig.fork.bar.horizontal ? ShellState.componentsFor(root.screen)?.bar?.exclusiveZone ?? 0 : Config.border.thickness
 
                     values: Audio.cava.values
                     primaryColor: Qt.alpha(Colours.palette.m3primary, 0.7)

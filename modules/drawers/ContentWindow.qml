@@ -88,14 +88,14 @@ StyledWindow {
     Region {
         id: emptyRegion
 
-        x: panels.notifications.x + bar.implicitWidth
-        y: panels.notifications.y + root.borderThickness
+        x: panels.notifications.x + bar.leftInset(root.borderThickness) // [fork]
+        y: panels.notifications.y + bar.topInset(root.borderThickness) // [fork]
         width: panels.notifications.width
         height: panels.notifications.height
 
         Region {
             x: root.width - width
-            y: panels.osdWrapper.y + root.borderThickness
+            y: panels.osdWrapper.y + bar.topInset(root.borderThickness) // [fork]
             width: panels.osdWrapper.width * (1 - panels.osd.offsetScale) + root.borderThickness
             height: panels.osd.height
         }
@@ -168,9 +168,9 @@ StyledWindow {
             anchors.margins: -50 // Make border thicker to smooth out bulge from closed drawers
             group: blobGroup
             radius: root.borderRounding
-            borderLeft: bar.implicitWidth - anchors.margins - root.sdfBorderOffset
+            borderLeft: bar.leftInset(root.borderThickness) - anchors.margins - root.sdfBorderOffset // [fork]
             borderRight: root.borderThickness - anchors.margins - root.sdfBorderOffset
-            borderTop: root.borderThickness - anchors.margins - root.sdfBorderOffset
+            borderTop: bar.topInset(root.borderThickness) - anchors.margins - root.sdfBorderOffset // [fork]
             borderBottom: root.borderThickness - anchors.margins - root.sdfBorderOffset
         }
 
@@ -193,7 +193,7 @@ StyledWindow {
 
             panel: panels.sessionWrapper
             deformAmount: 0.2
-            x: panels.sessionWrapper.x + panels.session.x + bar.implicitWidth
+            x: panels.sessionWrapper.x + panels.session.x + bar.leftInset(root.borderThickness) // [fork]
             implicitWidth: panels.session.width
         }
 
@@ -212,7 +212,7 @@ StyledWindow {
 
             panel: panels.osdWrapper
             deformAmount: 0.25
-            x: panels.osdWrapper.x + panels.osd.x + bar.implicitWidth
+            x: panels.osdWrapper.x + panels.osd.x + bar.leftInset(root.borderThickness) // [fork]
             implicitWidth: panels.osd.width
         }
 
@@ -241,6 +241,18 @@ StyledWindow {
             deformAmount: panels.popouts.isDetached ? 0.05 : panels.popouts.hasCurrent ? 0.15 : 0.1
             x: panels.popoutsWrapper.x + panels.popouts.x + bar.implicitWidth - panels.popouts.width * extraWidth
             implicitWidth: panels.popouts.width * (1 + extraWidth)
+
+            // [fork] Under a top bar the extra size goes upwards, into the bar
+            states: State {
+                when: bar.horizontal
+
+                PropertyChanges {
+                    popoutBg.x: panels.popoutsWrapper.x + panels.popouts.x + root.borderThickness
+                    popoutBg.y: panels.popoutsWrapper.y + panels.popouts.y + bar.implicitWidth - panels.popouts.height * popoutBg.extraWidth
+                    popoutBg.implicitWidth: panels.popouts.width
+                    popoutBg.implicitHeight: panels.popouts.height * (1 + popoutBg.extraWidth)
+                }
+            }
 
             Behavior on extraWidth {
                 Anim {}
@@ -300,7 +312,9 @@ StyledWindow {
             id: bar
 
             anchors.top: parent.top
-            anchors.bottom: parent.bottom
+            // [fork] Full height on the left, or full width along the top
+            width: horizontal ? parent.width : implicitWidth
+            height: horizontal ? implicitWidth : parent.height
 
             screen: root.screen
             screenState: root.screenState
@@ -339,8 +353,8 @@ StyledWindow {
         property real deformAmount: 0.15
 
         group: blobGroup
-        x: panel.x + bar.implicitWidth
-        y: panel.y + root.borderThickness
+        x: panel.x + bar.leftInset(root.borderThickness) // [fork]
+        y: panel.y + bar.topInset(root.borderThickness) // [fork]
         implicitWidth: panel.width
         implicitHeight: panel.height
         radius: Tokens.rounding.extraLarge

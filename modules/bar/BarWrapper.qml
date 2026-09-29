@@ -6,6 +6,7 @@ import Caelestia.Config
 import qs.components
 import qs.utils
 import qs.modules.bar.popouts as BarPopouts
+import qs.custom.bar as Fork // [fork]
 
 Item {
     id: root
@@ -14,6 +15,11 @@ Item {
     required property ScreenState screenState
     required property BarPopouts.Wrapper popouts
     required property bool fullscreen
+
+    // [fork] Top bar (custom/bar). `implicitWidth` stays the bar's animated thickness
+    // in both orientations; the drawers ask leftInset()/topInset() for the space the
+    // bar takes instead of assuming it sits on the left.
+    readonly property bool horizontal: GlobalConfig.fork.bar.horizontal
 
     readonly property bool disabled: Strings.testRegexList(Config.bar.excludedScreens, screen.name)
 
@@ -24,20 +30,34 @@ Item {
     readonly property bool shouldBeVisible: !fullscreen && !disabled && (Config.bar.persistent || screenState.bar || isHovered)
     property bool isHovered
 
-    function closeTray(): void {
-        (content.item as Bar)?.closeTray();
+    // [fork] Space the bar takes from the left/top edge, given the border thickness
+    // the caller uses for the other edges.
+    function leftInset(border: real): real {
+        return horizontal ? border : implicitWidth;
     }
 
+    function topInset(border: real): real {
+        return horizontal ? implicitWidth : border;
+    }
+
+    function closeTray(): void {
+        (content.item as Bar)?.closeTray();
+        (hContent.item as Fork.HBar)?.closeTray(); // [fork]
+    }
+
+    // [fork] For the top bar, `y` is the position along the bar, i.e. x
     function checkPopout(y: real): void {
         (content.item as Bar)?.checkPopout(y);
+        (hContent.item as Fork.HBar)?.checkPopout(y); // [fork]
     }
 
     function handleWheel(y: real, angleDelta: point): void {
         (content.item as Bar)?.handleWheel(y, angleDelta);
+        (hContent.item as Fork.HBar)?.handleWheel(y, angleDelta); // [fork]
     }
 
     clip: true
-    visible: width > Config.border.thickness
+    visible: (horizontal ? height : width) > Config.border.thickness // [fork] horizontal
     implicitWidth: fullscreen ? 0 : Config.border.thickness
 
     states: State {
@@ -78,10 +98,30 @@ Item {
         anchors.bottom: parent.bottom
         anchors.right: parent.right
 
-        active: root.shouldBeVisible
+        active: root.shouldBeVisible && !root.horizontal // [fork] !horizontal
 
         sourceComponent: Bar {
             width: root.contentWidth
+            screen: root.screen
+            screenState: root.screenState
+            popouts: root.popouts // qmllint disable incompatible-type
+            fullscreen: root.fullscreen
+        }
+    }
+
+    // [fork] The top bar hangs from the bottom edge, so it slides down into view as
+    // the wrapper grows, the way the upstream bar slides in from the left.
+    Loader {
+        id: hContent
+
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+
+        active: root.shouldBeVisible && root.horizontal
+
+        sourceComponent: Fork.HBar {
+            height: root.contentWidth
             screen: root.screen
             screenState: root.screenState
             popouts: root.popouts // qmllint disable incompatible-type
