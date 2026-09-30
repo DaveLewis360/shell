@@ -27,6 +27,78 @@ RowLayout {
     // screen, like the bar, so the entries it covers fade out while it is open.
     readonly property Dashboard.Wrapper dashboard: ShellState.componentsFor(screen)?.panels?.dashboard ?? null
 
+    // The entries between the first and the last spacer are centred on the bar, not
+    // between the two sides as two equal spacers would put them. The centre gets the
+    // difference between the sides as a margin towards the lighter one. (On a spacer
+    // the margin would not work: a filling item with a margin takes all the spare
+    // room.) Without two spacers there is no centre.
+    readonly property var ids: Config.bar.entries.values.filter(e => e.enabled).map(e => e.id)
+    readonly property int firstSpacer: ids.indexOf("spacer")
+    readonly property int lastSpacer: ids.lastIndexOf("spacer")
+    readonly property bool hasCentre: lastSpacer > firstSpacer
+    property int revision // Bumped when delegates come and go, to re-measure
+
+    readonly property int centreFirst: centreEdge(false)
+    readonly property int centreLast: centreEdge(true)
+    readonly property real leftWidth: sideWidth(false)
+    readonly property real rightWidth: sideWidth(true)
+    // Width the centre can take while it stays centred
+    readonly property real centreRoom: hasCentre ? width - hPadding * 2 - Math.max(leftWidth, rightWidth) * 2 - spacing * 2 : Infinity
+
+    // Index of the first or last centre entry that has a delegate, or -1
+    function centreEdge(last: bool): int {
+        revision; // Re-measure once delegates change
+        if (!hasCentre)
+            return -1;
+
+        for (let n = 1; n < lastSpacer - firstSpacer; n++) {
+            const i = last ? lastSpacer - n : firstSpacer + n;
+            const entry = repeater.itemAt(i) as EntryWrapper;
+            if (entry?.visible && entry.entryId !== "spacer")
+                return i;
+        }
+        return -1;
+    }
+
+    // Fixed width of one side of the centre: its entries with their spacing
+    function sideWidth(right: bool): real {
+        revision; // Re-measure once delegates change
+        if (!hasCentre)
+            return 0;
+
+        let sum = 0;
+        for (let i = 0; i < repeater.count; i++) {
+            if (right ? i <= lastSpacer : i >= firstSpacer)
+                continue;
+            const entry = repeater.itemAt(i);
+            if (entry?.visible)
+                sum += entry.implicitWidth + spacing;
+        }
+        return sum;
+    }
+
+    // What a centre entry that sizes itself to the room left (the active window
+    // title) may take: the centre's room minus the other centre entries. Unlimited
+    // outside the centre.
+    function centreRoomFor(item: Item): real {
+        revision; // Re-measure once delegates change
+        if (!hasCentre)
+            return Infinity;
+
+        let own = -1;
+        let others = 0;
+        for (let i = firstSpacer + 1; i < lastSpacer; i++) {
+            const entry = repeater.itemAt(i) as EntryWrapper;
+            if (!entry?.visible)
+                continue;
+            if (entry.item === item)
+                own = i;
+            else if (entry.entryId !== "spacer")
+                others += entry.implicitWidth + spacing;
+        }
+        return own < 0 ? Infinity : Math.max(0, centreRoom - others);
+    }
+
     function closeTray(): void {
         if (!Config.bar.tray.compact)
             return;
@@ -117,8 +189,11 @@ RowLayout {
         model: ScriptModel {
             // Ids, not the entry objects: a config reload recreates every entry, and
             // the repeater then kept delegates of the old ids when the list changed
-            values: root.Config.bar.entries.values.filter(e => e.enabled).map(e => e.id)
+            values: root.ids
         }
+
+        onItemAdded: root.revision++
+        onItemRemoved: root.revision++
 
         DelegateChooser {
             role: "modelData"
@@ -154,6 +229,16 @@ RowLayout {
                         objectName: "taskbarActiveWindow"
                         bar: root
                         monitor: Brightness.getMonitorForScreen(root.screen)
+                    }
+                }
+            }
+            DelegateChoice {
+                roleValue: "miniDash"
+                delegate: EntryWrapper {
+                    MiniDash {
+                        objectName: "taskbarMiniDash"
+                        screenState: root.screenState
+                        bar: root
                     }
                 }
             }
@@ -199,8 +284,8 @@ RowLayout {
         default property Item item
         readonly property string entryId: modelData
 
-        Layout.leftMargin: index === 0 ? root.hPadding : 0
-        Layout.rightMargin: index === repeater.count - 1 ? root.hPadding : 0
+        Layout.leftMargin: (index === 0 ? root.hPadding : 0) + (index === root.centreFirst ? Math.max(0, root.rightWidth - root.leftWidth) : 0)
+        Layout.rightMargin: (index === repeater.count - 1 ? root.hPadding : 0) + (index === root.centreLast ? Math.max(0, root.leftWidth - root.rightWidth) : 0)
         Layout.alignment: Qt.AlignVCenter
 
         readonly property bool underDashboard: {

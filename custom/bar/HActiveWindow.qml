@@ -30,12 +30,14 @@ Item {
         return title;
     }
 
-    // Upstream's maxHeight along the other axis: what the other entries leave free
+    // Upstream's maxHeight along the other axis: what the other entries leave free.
+    // In the bar's centre, at most what keeps it centred.
     readonly property int maxWidth: {
         const otherModules = bar.children.filter(c => c.entryId && c.item !== this && c.entryId !== "spacer");
         const otherWidth = otherModules.reduce((acc, curr) => acc + (curr.item.nonAnimWidth ?? curr.width), 0);
         // Length - 2 cause repeater counts as a child
-        return bar.width - otherWidth - bar.spacing * (bar.children.length - 1) - bar.hPadding * 2;
+        const free = bar.width - otherWidth - bar.spacing * (bar.children.length - 1) - bar.hPadding * 2;
+        return Math.min(free, bar.centreRoomFor(this));
     }
     property Title current: text1
 

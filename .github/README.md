@@ -7,7 +7,7 @@ itself, its features and its configuration, see the [upstream README](../README.
 
 ## The bar toggle
 
-Nexus → Panels → Taskbar → Position → "Horizontal bar", or in `shell.json`:
+Nexus → Panels → Taskbar → Layout → "Horizontal bar", or in `shell.json`:
 
 ```json
 "fork": {
@@ -18,7 +18,25 @@ Nexus → Panels → Taskbar → Position → "Horizontal bar", or in `shell.jso
 The shell switches live. Off, the bar is upstream's, pixel for pixel. On, the
 bar is the same bar laid out as a row: the same `bar.entries`, the same options,
 icons, fonts and colours. Popouts hang below it; the dashboard opens from the
-top edge, over the bar.
+top edge, over the bar, and the entries it covers fade out meanwhile.
+
+## The bar centre
+
+Nexus → Panels → Taskbar → Layout → "Centre" picks what the middle of the bar
+shows: nothing, the active window, or the mini dashboard. It edits `bar.entries`,
+so the same can be written by hand:
+
+- the active window is upstream's `activeWindow` entry;
+- the mini dashboard is the fork's `miniDash` entry: the player in the middle, in
+  a capsule like the workspaces one with the dashboard's wavy seek slider,
+  flanked by the processor's use and temperature and by memory and disk use, as
+  rings in the clock's type and colour. Clicking it opens the dashboard's media
+  or performance tab; the load steps aside when the bar has no room for it. The
+  GPU is left to that tab, since reading it keeps a hybrid laptop's discrete GPU
+  awake. Only the top bar shows it; the vertical bar skips the entry.
+
+Whatever sits between the first and the last spacer is centred on the screen, not
+between the two sides.
 
 ## How the fork is kept
 
