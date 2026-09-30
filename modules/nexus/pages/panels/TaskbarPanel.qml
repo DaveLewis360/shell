@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
+import qs.custom.nexus // [fork]
 import qs.modules.nexus.common
 import qs.custom.nexus // [fork]
 
@@ -50,18 +51,21 @@ PageBase {
             onMoved: v => GlobalConfig.bar.dragThreshold = v
         }
 
-        // [fork] Position
+        // [fork] Layout
         SectionHeader {
-            text: Tr.tr("Position")
+            text: Tr.tr("Layout")
         }
 
         ToggleRow {
             first: true
-            last: true
             text: Tr.tr("Horizontal bar")
             subtext: Tr.tr("Place the bar along the top edge of the screen")
             checked: GlobalConfig.fork.bar.horizontal
             onToggled: GlobalConfig.fork.bar.horizontal = checked
+        }
+
+        BarCentreRow {
+            last: true
         }
 
         // Components
