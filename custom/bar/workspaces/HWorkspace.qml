@@ -51,6 +51,12 @@ Item {
         return Colours.layer(Colours.palette.m3outlineVariant, 2);
     }
 
+    // Final layout width, unanimated: the horizontal equivalent of upstream's
+    // LazyListView.preferredHeight. Scroll and indicator math measures this,
+    // never the animated `width`. Appear animation is opacity-only (ListView
+    // add/remove Transitions), so settled geometry is available immediately.
+    readonly property real preferredWidth: layout.implicitWidth + (hasWindows ? Tokens.padding.extraSmall : 0)
+
     function updateShape(): void {
         const shape = indicator.item as MaterialShape;
         if (!shape)
@@ -62,16 +68,12 @@ Item {
             shape.shape = Qt.binding(() => isOccupied ? MaterialShape.Square : MaterialShape.Circle);
     }
 
-    implicitWidth: layout.implicitWidth + (hasWindows ? Tokens.padding.extraSmall : 0)
+    implicitWidth: preferredWidth
     implicitHeight: indicatorSize
     height: ListView.view?.height ?? implicitHeight
 
     onFocusedChanged: updateShape()
     Component.onCompleted: updateShape()
-
-    Behavior on implicitWidth {
-        Anim {}
-    }
 
     Component {
         id: shapeComponent
