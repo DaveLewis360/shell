@@ -12,6 +12,7 @@ import qs.modules.sidebar as Sidebar
 import qs.modules.utilities as Utilities
 import qs.modules.bar.popouts as BarPopouts
 import qs.modules.utilities.toasts as Toasts
+import qs.custom.chat as Chat // [fork]
 
 Item {
     id: root
@@ -33,6 +34,7 @@ Item {
     readonly property alias utilities: utilities
     readonly property alias toasts: toasts
     readonly property alias sidebar: sidebar
+    readonly property alias chat: chat // [fork]
 
     anchors.fill: parent
     anchors.margins: borderThickness
@@ -153,5 +155,16 @@ Item {
         anchors.bottom: utilities.top
         anchors.right: parent.right
         anchors.topMargin: -notifications.anchors.topMargin
+    }
+
+    // [fork] Left-edge AI chat sidebar, the left mirror of the right notification sidebar
+    Chat.Wrapper {
+        id: chat
+
+        screenState: root.screenState
+
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
     }
 }

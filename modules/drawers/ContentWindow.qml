@@ -68,7 +68,7 @@ StyledWindow {
     name: "drawers"
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: (fsTransitionProg > 0 && contentItem.Config.general.showOverFullscreen) || (hasSpecialWorkspace && hasFullscreenOnNormalWs) ? WlrLayer.Overlay : WlrLayer.Top
-    WlrLayershell.keyboardFocus: screenState.launcher || screenState.session ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: screenState.launcher || screenState.session || screenState.chat ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None // [fork] chat: the text input needs keys
 
     mask: hasFullscreen ? emptyRegion : regions
 
@@ -117,6 +117,8 @@ StyledWindow {
             const conf = root.contentItem.Config;
             if ((s.launcher && conf.launcher.enabled) || (s.session && conf.session.enabled) || (s.sidebar && conf.sidebar.enabled))
                 return true;
+            if (s.chat) // [fork]
+                return true;
             if (!conf.dashboard.showOnHover && s.dashboard && conf.dashboard.enabled)
                 return true;
             if (panels.popouts.currentName.startsWith("traymenu") && (panels.popouts.current as StackView)?.depth > 1)
@@ -128,6 +130,7 @@ StyledWindow {
             root.screenState.launcher = false;
             root.screenState.session = false;
             root.screenState.sidebar = false;
+            root.screenState.chat = false; // [fork]
             root.screenState.dashboard = false;
             panels.popouts.hasCurrent = false;
             bar.closeTray();
@@ -205,6 +208,14 @@ StyledWindow {
             implicitHeight: panel.height * (1 / rawDeformMatrix.m22) + 2
             exclude: panels.sidebar.offsetScale > 0.08 ? [] : [utilsBg]
             bottomLeftRadius: Math.max(0, Math.min(1, panels.sidebar.offsetScale / 0.3)) * radius
+        }
+
+        PanelBg {
+            id: chatBg // [fork]
+
+            panel: panels.chat
+            deformAmount: 0.03
+            implicitHeight: panel.height * (1 / rawDeformMatrix.m22) + 2
         }
 
         PanelBg {
@@ -294,6 +305,9 @@ StyledWindow {
             sidebar.transform: Matrix4x4 {
                 matrix: sidebarBg.deformMatrix
             }
+            chat.transform: Matrix4x4 {
+                matrix: chatBg.deformMatrix
+            } // [fork]
             osd.transform: Matrix4x4 {
                 matrix: osdBg.deformMatrix
             }

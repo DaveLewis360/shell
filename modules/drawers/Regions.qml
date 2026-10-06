@@ -46,6 +46,14 @@ Region {
     }
 
     R {
+        id: chatRegion // [fork]
+
+        panel: root.panels.chat
+        x: 0
+        width: panel.width * (1 - root.panels.chat.offsetScale) + root.borderThickness
+    }
+
+    R {
         id: sidebarRegion
 
         panel: root.panels.sidebar
