@@ -222,7 +222,12 @@ ClipRect {
         anchors.fill: parent
 
         asynchronous: true
-        active: opacity > 0
+        // Always loaded (warm): the cold first-open otherwise builds all
+        // delegates lazily while the model churns, and the scroll latches.
+        // Opacity still drives both fades; `visible` gates input/rendering
+        // once fully closed without destroying delegates.
+        active: true
+        visible: opacity > 0
         opacity: root.onSpecial ? 1 : 0
 
         sourceComponent: Item {
