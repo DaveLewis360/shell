@@ -1,0 +1,18 @@
+{
+    "_comment": "Each chat component is a port of an upstream sidebar file. `blob` is that file at `ref`; when upstream changes it, `git diff <blob> <ref>:<upstream>` shows what to carry over.",
+    "ref": "v2.5.0",
+    "files": {
+        "Wrapper.qml": {
+            "upstream": "modules/sidebar/Wrapper.qml",
+            "blob": "8e24ac2cb5ca7acc68e297acb1bbe14ac036bc59"
+        },
+        "Content.qml": {
+            "upstream": "modules/sidebar/Content.qml",
+            "blob": "5afe64a5126d3a4cb6e524bc08c9e533bcd1a019"
+        },
+        "Props.qml": {
+            "upstream": "modules/sidebar/Props.qml",
+            "blob": "46139424f65c49905f88f7d875f0a1791a98193e"
+        }
+    }
+}

@@ -23,6 +23,7 @@ CustomMouseArea {
     property bool osdShortcutActive
     property bool utilitiesShortcutActive
     property bool sidebarShortcutActive
+    property bool chatShortcutActive // [fork] chat opened by keybind/IPC, not hover — don't auto-close it
 
     // [fork] Axis helpers for the top bar: the distance from the edge the bar sits on,
     // and the position along the bar
@@ -106,6 +107,9 @@ CustomMouseArea {
 
             if (Config.sidebar.showOnHover && !sidebarShortcutActive)
                 screenState.sidebar = false;
+
+            if (!chatShortcutActive)
+                screenState.chat = false; // [fork] same hide-on-leave as the right sidebar
         }
     }
 
@@ -215,6 +219,44 @@ CustomMouseArea {
             // Hide sidebar on drag
             if (pressed && inRightPanel(panels.sidebar, dragStart.x, 0) && dragX > Config.sidebar.dragThreshold)
                 screenState.sidebar = false;
+        }
+
+        // [fork] Left chat sidebar: hover/drag mirror of the right sidebar above.
+        // Shortcut mode (opened by keybind/IPC) keeps it open until the mouse
+        // actually enters the panel, mirroring the dashboard/osd handling.
+        const chatHoverZone = Math.max(Config.border.minThickness, root.borderThickness);
+        const chatVisibleWidth = panels.chat.width * (1 - panels.chat.offsetScale);
+        const mouseInChatArea = x <= chatVisibleWidth + root.borderThickness + Config.border.rounding && y > bar.topInset(borderThickness);
+
+        if (panels.chat.offsetScale === 1) {
+            // Show chat on left-edge hover
+            if (Config.sidebar.showOnHover) {
+                const showChatHover = x < chatHoverZone && y > bar.topInset(borderThickness);
+                if (showChatHover && !screenState.chat)
+                    screenState.chat = true;
+            }
+
+            // Show chat on drag inward from the left edge
+            if (pressed && dragStart.x < chatHoverZone) {
+                if (dragX > Config.sidebar.dragThreshold)
+                    screenState.chat = true;
+                else if (dragX < -Config.sidebar.dragThreshold)
+                    screenState.chat = false;
+            }
+        } else {
+            // Entering the panel area transitions from shortcut mode to hover control
+            if (mouseInChatArea)
+                chatShortcutActive = false;
+
+            // Hide chat when the mouse leaves the panel area
+            if (Config.sidebar.showOnHover && !pressed && !chatShortcutActive) {
+                if (!mouseInChatArea)
+                    screenState.chat = false;
+            }
+
+            // Hide chat on drag outward toward the edge
+            if (pressed && dragStart.x <= panels.chat.width + root.borderThickness && dragX < -Config.sidebar.dragThreshold)
+                screenState.chat = false;
         }
 
         // Show launcher on hover, or show/hide on drag if hover is disabled
@@ -339,6 +381,16 @@ CustomMouseArea {
             } else {
                 // Sidebar hidden, clear shortcut flag
                 root.sidebarShortcutActive = false;
+            }
+        }
+
+        function onChatChanged() { // [fork] mirror of the dashboard/osd shortcut-mode handling
+            if (root.screenState.chat) {
+                const inChatArea = root.mouseX <= root.panels.chat.width + root.borderThickness && root.mouseY > root.bar.topInset(root.borderThickness);
+                if (!inChatArea)
+                    root.chatShortcutActive = true;
+            } else {
+                root.chatShortcutActive = false;
             }
         }
 
