@@ -29,19 +29,41 @@ Item {
         return view.itemAtIndex(activeIdx);
     }
 
-    function layoutX(idx: int): real {
-        let x = 0;
-        for (let i = 0; i < idx; i++)
-            x += (view.itemAtIndex(i)?.width ?? 0) + view.spacing;
-        return x;
-    }
-
+    // Settled layout position (upstream: LazyListView.layoutY). Measuring every
+    // delegate and bailing if any is missing is what upstream's C++ core buys
+    // with effectiveEstimatedHeight(): a torn-down delegate used to degrade
+    // this to 0, and `left < -target` then dragged the row back to 0 with
+    // nothing left to re-trigger the scroll.
     function ensureVisible(animate = true): void {
-        if (!activeWs)
+        if (activeIdx < 0) {
+            scrollRetry.stop();
             return;
+        }
 
-        const left = layoutX(activeIdx);
-        const right = left + activeWs.width;
+        let left = 0;
+        let aw = null;
+        for (let i = 0; i < view.count; i++) {
+            const item = view.itemAtIndex(i);
+            if (!item) {
+                // Delegate mid-creation (fullscreen bar recreation incubates
+                // the whole row asynchronously). Bailing is correct, but the
+                // trigger cascade may die out before every delegate exists —
+                // without a retry the row latches at its initial scroll.
+                if (activeIdx < view.count)
+                    scrollRetry.restart();
+                return;
+            }
+            if (i === activeIdx)
+                aw = item;
+            if (i < activeIdx)
+                left += (item as HWorkspace)?.preferredWidth + view.spacing;
+        }
+        if (!aw) {
+            scrollRetry.stop();
+            return;
+        }
+
+        const right = left + (aw as HWorkspace).preferredWidth;
 
         let target = view.x;
         if (left < -target)
@@ -49,7 +71,14 @@ Item {
         else if (right > -target + width)
             target = -(right - width);
 
-        target = CUtils.clamp(target, -maxViewX, 0);
+        // Clamp against the settled preferredWidth sums, never the ListView's
+        // contentWidth: contentWidth depends on the view having laid out every
+        // delegate, and a freshly-inserted delegate can leave it stuck low
+        // (e.g. 152 with 5 delegates) — clamping to it then snaps the row back
+        // to 0 and the last icon never becomes reachable. `right` is the same
+        // settled geometry upstream's C++ core feeds its ensureVisible.
+        const maxX = Math.max(0, right - width);
+        target = CUtils.clamp(target, -maxX, 0);
         if (target !== view.x) {
             if (animate) {
                 const type = viewXAnim.type;
@@ -68,6 +97,13 @@ Item {
     onWidthChanged: ensureVisible(false)
     Component.onCompleted: ensureVisible(false)
     onMaxViewXChanged: ensureVisible()
+
+    Timer {
+        id: scrollRetry
+
+        interval: 50
+        onTriggered: root.ensureVisible(false)
+    }
 
     layer.enabled: true
     layer.effect: Mask {
@@ -151,6 +187,11 @@ Item {
     ListView {
         id: view
 
+        // Only the vertical edges may be anchored: the row scrolls by writing
+        // view.x, and Qt discards manual writes to an anchor-managed axis
+        // (anchors.fill silently reset x to 0, killing the scroll). This is the
+        // horizontal mirror of upstream, whose view is anchored left+right and
+        // moves on the free y axis.
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: contentWidth
@@ -158,8 +199,10 @@ Item {
         orientation: ListView.Horizontal
         interactive: false
         spacing: Tokens.spacing.small
+        cacheBuffer: 10000 // Upstream cullDelegates:false equivalent: instantiate all delegates up front
 
         onContentWidthChanged: root.ensureVisible()
+        onCountChanged: root.ensureVisible()
 
         model: ScriptModel {
             values: root.wsIds
