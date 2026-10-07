@@ -260,6 +260,15 @@ class Chief:
         if self.loop is not None:
             self.loop.call_soon_threadsafe(self.queue.put_nowait, payload)
 
+    async def broadcast_error(self, message: str, auth: bool = False) -> None:
+        # Surface which model failed: provider 401s are cryptic ("Missing
+        # Authentication header" = no API key stored for that provider).
+        model = ""
+        if self.model:
+            model = f" [{self.model.get('providerID', '?')}/{self.model.get('id', '?')}]"
+        hint = " - no API key for this provider? run: opencode auth login" if auth else ""
+        await self.broadcast({"type": "error", "message": f"{message}{model}{hint}"})
+
     async def send_status(self) -> None:
         await self.broadcast({
             "type": "status",
@@ -376,7 +385,7 @@ class Chief:
                     json.dumps(err)[:200] if err else ""
                 )
                 if msg:
-                    await self.broadcast({"type": "error", "message": msg})
+                    await self.broadcast_error(msg, auth=(err or {}).get("type") == "provider.auth")
                 if self.turn_ended is not None:
                     self.turn_ended.set()
             return
@@ -391,7 +400,7 @@ class Chief:
             if isinstance(data, dict):
                 inner = data.get("error", data)
                 message = json.dumps(inner)[:300] if not isinstance(inner, str) else inner
-            await self.broadcast({"type": "error", "message": f"{etype}: {message}"})
+            await self.broadcast_error(message or etype, auth=etype == "provider.auth")
             return
 
         # permission events (names vary across versions); the poller in the
