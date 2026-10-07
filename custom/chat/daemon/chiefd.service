@@ -1,0 +1,13 @@
+[Unit]
+Description=Chief agent daemon (bridges the chat sidebar to opencode)
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/Reference/my-caelestia-shell-bar/custom/chat/daemon/chiefd.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target
