@@ -30,6 +30,7 @@ STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", HOME / ".local/state")) / "chi
 SOCK_PATH = STATE_DIR / "agent.sock"
 SESSION_FILE = STATE_DIR / "session.json"
 MODEL_FILE = STATE_DIR / "model.json"
+AUTH_FILE = Path.home() / ".local/share/opencode/auth.json"
 
 OC_HOST = "127.0.0.1"
 OC_PORT = int(os.environ.get("CHIEFD_OC_PORT", "4109"))
@@ -477,6 +478,76 @@ class Chief:
                     break
             await asyncio.sleep(2)
 
+    # ---------- provider auth ----------
+
+    def auth_providers(self) -> dict:
+        """Which providers have credentials stored in opencode's auth.json.
+        Booleans only - keys never leave the daemon."""
+        try:
+            data = json.loads(AUTH_FILE.read_text())
+            return {str(k): True for k in data}
+        except Exception:
+            return {}
+
+    async def send_auth(self) -> None:
+        await self.broadcast({"type": "auth", "providers": self.auth_providers()})
+
+    async def handle_set_auth(self, provider: str, key: str) -> None:
+        if not provider or not key:
+            await self.broadcast({"type": "error", "message": "setAuth needs provider and key"})
+            return
+        # This opencode build has no /api/auth route - write auth.json (the
+        # same store `opencode auth login` maintains) directly.
+        try:
+            try:
+                data = json.loads(AUTH_FILE.read_text())
+            except Exception:
+                data = {}
+            data[provider] = {"type": "api", "key": key}
+            AUTH_FILE.write_text(json.dumps(data, indent=2))
+        except Exception as e:
+            await self.broadcast({"type": "error", "message": f"could not write the key for {provider}: {e}"})
+            return
+        log("setAuth", provider, "written")
+        await self.send_auth()
+        # the running server reads auth.json once at startup - kill it so the
+        # respawn picks the new key up for the very next turn
+        if self.server_proc is not None:
+            try:
+                self.server_proc.kill()
+            except Exception:
+                pass
+        await self.restart_server()
+
+    async def handle_remove_auth(self, provider: str) -> None:
+        try:
+            data = json.loads(AUTH_FILE.read_text())
+        except Exception:
+            data = {}
+        if provider in data:
+            del data[provider]
+            AUTH_FILE.write_text(json.dumps(data, indent=2))
+            log("removeAuth", provider)
+        # the running server keeps the deleted key in memory - respawn it
+        if self.server_proc is not None:
+            try:
+                self.server_proc.kill()
+            except Exception:
+                pass
+        await self.restart_server()
+        await self.send_auth()
+
+    async def restart_server(self) -> None:
+        """Full respawn: fresh serve, session reuse, catalog refresh, broadcasts."""
+        try:
+            await asyncio.to_thread(self.ensure_server)
+            await asyncio.to_thread(self.load_state)
+            await self.send_status()
+            asyncio.create_task(self.refresh_models())
+        except Exception as e:
+            log("server restart failed:", e)
+            await self.broadcast({"type": "error", "message": f"opencode server restart failed: {e}"})
+
     async def sse_reader(self) -> None:
         """Blocking SSE consumer running in a thread; reconnects forever."""
         while True:
@@ -489,10 +560,7 @@ class Chief:
             # A dropped stream is usually transient - only respawn the server
             # when the process itself is gone, never while it still owns the port.
             if self.server_proc is None or self.server_proc.poll() is not None:
-                try:
-                    await asyncio.to_thread(self.ensure_server)
-                except Exception as e:
-                    log("opencode server still down:", e)
+                await self.restart_server()
 
     async def permission_poller(self) -> None:
         """Surface permission asks while a turn is running."""
@@ -516,6 +584,7 @@ async def client_connected(reader: asyncio.StreamReader, writer: asyncio.StreamW
         await chief.send_status()
         await chief.send_models()
         await chief.send_history()
+        await chief.send_auth()
         # re-surface permissions asked while no sidebar was attached, so the
         # card is not lost across panel open/close cycles (the turn stays
         # blocked server-side until answered)
@@ -556,6 +625,10 @@ async def client_connected(reader: asyncio.StreamReader, writer: asyncio.StreamW
                         {"model": chief.model},
                     ))
                 await chief.send_status()
+            elif mtype == "setAuth":
+                asyncio.create_task(chief.handle_set_auth(str(msg.get("provider", "")), str(msg.get("key", ""))))
+            elif mtype == "removeAuth":
+                asyncio.create_task(chief.handle_remove_auth(str(msg.get("provider", ""))))
     except (ConnectionResetError, asyncio.IncompleteReadError):
         pass
     finally:

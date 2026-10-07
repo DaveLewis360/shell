@@ -20,6 +20,7 @@ QtObject {
     property bool connected: false
     property string modelName: ""          // "provider/model" of the selected model
     property var providers: []             // [{providerID, name, models: [{modelID, name}]}]
+    property var authProviders: ({})       // {providerID: true} - which providers have stored keys
 
     signal newMessage(string sender, string text)
     signal assistantText(string text)
@@ -78,6 +79,9 @@ QtObject {
         case "models":
             providers = msg.providers ?? [];
             break;
+        case "auth":
+            authProviders = msg.providers ?? {};
+            break;
         case "history":
             for (let i = 0; i < (msg.messages ?? []).length; i++)
                 newMessage(msg.messages[i].sender, msg.messages[i].text);
@@ -131,6 +135,21 @@ QtObject {
             type: "setModel",
             providerID: providerID,
             modelID: modelID
+        });
+    }
+
+    function setAuth(provider: string, key: string): void {
+        write({
+            type: "setAuth",
+            provider: provider,
+            key: key
+        });
+    }
+
+    function removeAuth(provider: string): void {
+        write({
+            type: "removeAuth",
+            provider: provider
         });
     }
 
