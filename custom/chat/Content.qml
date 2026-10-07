@@ -171,7 +171,7 @@ Item {
             Layout.fillWidth: true
             radius: height / 2
             implicitHeight: modelNameText.implicitHeight + Tokens.padding.extraSmall * 0.75
-            color: modelPicker.visible ? Colours.tPalette.m3surfaceContainerHighest : Colours.tPalette.m3surfaceContainer
+            color: modelPicker.open ? Colours.tPalette.m3surfaceContainerHighest : Colours.tPalette.m3surfaceContainer
 
             MaterialIcon {
                 id: tuneIcon
@@ -199,7 +199,7 @@ Item {
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
-                onClicked: modelPicker.open()
+                onClicked: modelPicker.open = true
             }
         }
 
@@ -290,30 +290,61 @@ Item {
         }
     }
 
-    // Model picker popup
-    Popup {
+    // Model picker. A plain in-panel overlay, NOT a QQuickPopup: a popup
+    // escapes the drawers window's input region and its modal grab breaks
+    // the HyprlandFocusGrab, which instantly closed the picker and the
+    // panel itself.
+    Item {
         id: modelPicker
 
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        width: 380
-        height: Math.min(460, root.height - Tokens.padding.large * 2)
-        padding: Tokens.padding.small
-        modal: true
+        anchors.fill: parent
 
+        property bool open: false
         // 500+ rows: only build them the first time the picker actually
         // opens, never while the panel itself is loading
         property bool rowsLoaded: false
-        onOpened: rowsLoaded = true
 
-        background: StyledRect {
-            radius: Tokens.rounding.large
-            color: Colours.tPalette.m3surfaceContainer
+        onOpenChanged: {
+            if (open)
+                rowsLoaded = true;
         }
 
-        contentItem: Item {
+        function close(): void {
+            open = false;
+        }
+
+        opacity: open ? 1 : 0
+        visible: opacity > 0
+
+        Behavior on opacity {
+            Anim {
+                type: Anim.DefaultEffects
+            }
+        }
+
+        // scrim + click-catcher
+        StyledRect {
+            anchors.fill: parent
+            radius: Tokens.rounding.large
+            color: Colours.palette.m3scrim
+            opacity: 0.35
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: modelPicker.close()
+            }
+        }
+
+        StyledRect {
+            anchors.centerIn: parent
+            width: parent.width - Tokens.padding.large * 2
+            height: Math.min(460, parent.height - Tokens.padding.large * 2)
+            radius: Tokens.rounding.large
+            color: Colours.tPalette.m3surfaceContainer
+
             ColumnLayout {
                 anchors.fill: parent
+                anchors.margins: Tokens.padding.small
                 spacing: Tokens.spacing.small
 
                 StyledText {
@@ -419,8 +450,10 @@ Item {
     // Grab keyboard focus whenever the panel opens, so the input can be typed into
     Connections {
         function onChatChanged(): void {
-            if (root.screenState.chat)
+            if (root.screenState.chat) {
+                modelPicker.close(); // never restore a stale picker across opens
                 input.forceActiveFocus();
+            }
         }
 
         target: root.screenState
