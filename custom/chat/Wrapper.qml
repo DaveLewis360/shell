@@ -19,10 +19,18 @@ Item {
     implicitWidth: Tokens.sizes.sidebar.width
     opacity: 1 - offsetScale
 
+    // Snappier than the upstream DefaultSpatial (500 ms) so the panel feels
+    // close to instant.
     Behavior on offsetScale {
-        Anim {}
+        Anim {
+            type: Anim.FastSpatial
+        }
     }
 
+    // Keep the chat alive once built: rebuilding on every toggle meant a
+    // socket reconnect, a fresh history replay and the transcript re-render
+    // racing the slide-in animation. The cost of keeping it is one idle
+    // socket connection.
     Loader {
         id: content
 
@@ -33,7 +41,7 @@ Item {
         anchors.margins: CUtils.clamp(anchors.rightMargin - Config.border.thickness, 0, anchors.rightMargin)
         anchors.bottomMargin: 0
 
-        active: root.shouldBeActive || root.visible
+        active: true
 
         sourceComponent: Content {
             implicitWidth: Tokens.sizes.sidebar.width - content.anchors.rightMargin - content.anchors.margins

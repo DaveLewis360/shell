@@ -301,6 +301,11 @@ Item {
         padding: Tokens.padding.small
         modal: true
 
+        // 500+ rows: only build them the first time the picker actually
+        // opens, never while the panel itself is loading
+        property bool rowsLoaded: false
+        onOpened: rowsLoaded = true
+
         background: StyledRect {
             radius: Tokens.rounding.large
             color: Colours.tPalette.m3surfaceContainer
@@ -333,7 +338,7 @@ Item {
                         spacing: Tokens.spacing.extraSmall
 
                         Repeater {
-                            model: client.providers
+                            model: modelPicker.rowsLoaded ? client.providers : []
 
                             ColumnLayout {
                                 id: providerSection
