@@ -309,14 +309,47 @@ Item {
         property var filtered: []
         property int highlightIndex: 0
 
+        // provider key management ("Manage keys")
+        property bool authMode: false
+        property string authProvider: ""   // non-empty: the key input targets this provider
+        property int authHighlight: 0
+        readonly property var authRows: {
+            const seen = {};
+            const out = [];
+            const providers = client.providers ?? [];
+            for (let i = 0; i < providers.length; i++) {
+                const pid = providers[i].providerID;
+                if (!seen[pid]) {
+                    seen[pid] = true;
+                    out.push({
+                        providerID: pid,
+                        name: providers[i].name ?? pid
+                    });
+                }
+            }
+            for (const pid in client.authProviders)
+                if (!seen[pid])
+                    out.push({
+                        providerID: pid,
+                        name: pid
+                    });
+            out.sort((a, b) => a.providerID.localeCompare(b.providerID));
+            return out;
+        }
+        readonly property int connectedCount: Object.keys(client.authProviders).length
+
         onOpenChanged: {
             if (!open)
                 return;
             rowsLoaded = true;
+            authMode = false;
+            authProvider = "";
             rebuild();
             searchField.text = "";
             highlightSelected();
+            // both, because focus can be lost again during the open pass
             searchField.forceActiveFocus();
+            Qt.callLater(() => searchField.forceActiveFocus());
         }
 
         function close(): void {
@@ -333,7 +366,7 @@ Item {
                 }
             }
             // the delegates for a freshly assigned model may not exist yet
-            Qt.callLater(() => list.positionViewAtIndex(highlightIndex, ListView.Contain));
+            Qt.callLater(() => modelList.positionViewAtIndex(highlightIndex, ListView.Contain));
         }
 
         function rebuild(): void {
@@ -384,7 +417,7 @@ Item {
             if (filtered.length === 0)
                 return;
             highlightIndex = Math.max(0, Math.min(filtered.length - 1, highlightIndex + delta));
-            list.positionViewAtIndex(highlightIndex, ListView.Contain);
+            modelList.positionViewAtIndex(highlightIndex, ListView.Contain);
         }
 
         function select(index: int): void {
@@ -393,6 +426,30 @@ Item {
                 return;
             client.setModel(m.providerID, m.modelID);
             close();
+        }
+
+        function submitAuthKey(): void {
+            const key = searchField.text.trim();
+            if (authProvider.length === 0 || key.length === 0)
+                return;
+            client.setAuth(authProvider, key);
+            searchField.text = "";
+            authProvider = "";
+            searchField.forceActiveFocus();
+        }
+
+        function moveAuth(delta: int): void {
+            if (authRows.length === 0)
+                return;
+            authHighlight = Math.max(0, Math.min(authRows.length - 1, authHighlight + delta));
+            authList.positionViewAtIndex(authHighlight, ListView.Contain);
+        }
+
+        function openAuthProvider(providerID: string): void {
+            authMode = true;
+            authProvider = providerID;
+            searchField.text = "";
+            searchField.forceActiveFocus();
         }
 
         Connections {
@@ -426,7 +483,9 @@ Item {
             }
         }
 
-        // The sheet: anchored under the model pill, right-aligned with the panel
+        // The sheet: anchored under the model pill, right-aligned with the
+        // panel. Raw palette (not tPalette): it floats over other windows'
+        // content, translucency would make it unreadable.
         StyledRect {
             id: sheet
 
@@ -434,20 +493,24 @@ Item {
             anchors.topMargin: Tokens.spacing.small
             anchors.left: parent.left
             anchors.right: parent.right
-            height: Math.min(480, modelPicker.height - modelPickerPill.height - Tokens.padding.large * 2)
+            height: Math.min(500, modelPicker.height - modelPickerPill.height - Tokens.padding.large * 2)
             radius: Tokens.rounding.large
-            color: Colours.tPalette.m3surfaceContainer
+            color: Colours.palette.m3surfaceContainer
 
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: Tokens.padding.small
                 spacing: Tokens.spacing.small
 
+                // search / API key input
                 StyledRect {
+                    id: searchBox
+
+                    visible: modelPicker.authProvider.length === 0 || modelPicker.authMode
                     Layout.fillWidth: true
                     radius: height / 2
                     implicitHeight: searchField.implicitHeight + Tokens.padding.small * 2
-                    color: Colours.tPalette.m3surfaceContainerHighest
+                    color: Colours.palette.m3surfaceContainerHighest
 
                     RowLayout {
                         anchors.fill: parent
@@ -456,7 +519,7 @@ Item {
                         spacing: Tokens.spacing.small
 
                         MaterialIcon {
-                            text: "search"
+                            text: modelPicker.authProvider.length > 0 ? "key" : "search"
                             color: Colours.palette.m3onSurfaceVariant
                         }
 
@@ -464,32 +527,75 @@ Item {
                             id: searchField
 
                             Layout.fillWidth: true
-                            placeholderText: qsTr("Search models…")
+                            placeholderText: {
+                                if (modelPicker.authProvider.length > 0)
+                                    return qsTr("Paste the API key for %1…").arg(modelPicker.authProvider);
+                                return modelPicker.authMode ? qsTr("Filter providers…") : qsTr("Search models…");
+                            }
                             placeholderTextColor: Colours.palette.m3outline
                             color: Colours.palette.m3onSurface
                             background: null
                             wrapMode: TextArea.NoWrap
 
                             onTextChanged: {
+                                if (modelPicker.authProvider.length > 0)
+                                    return; // this is the key draft, not a filter
                                 modelPicker.search = text;
                                 modelPicker.refilter();
                             }
 
-                            Keys.onUpPressed: modelPicker.move(-1)
-                            Keys.onDownPressed: modelPicker.move(1)
-                            Keys.onReturnPressed: modelPicker.select(modelPicker.highlightIndex)
+                            Keys.onUpPressed: {
+                                if (modelPicker.authMode)
+                                    modelPicker.moveAuth(-1);
+                                else
+                                    modelPicker.move(-1);
+                            }
+                            Keys.onDownPressed: {
+                                if (modelPicker.authMode)
+                                    modelPicker.moveAuth(1);
+                                else
+                                    modelPicker.move(1);
+                            }
+                            Keys.onReturnPressed: {
+                                if (modelPicker.authProvider.length > 0)
+                                    modelPicker.submitAuthKey();
+                                else if (modelPicker.authMode)
+                                    modelPicker.openAuthProvider(modelPicker.authHighlight);
+                                else
+                                    modelPicker.select(modelPicker.highlightIndex);
+                            }
                             Keys.onEscapePressed: {
-                                modelPicker.close();
-                                input.forceActiveFocus();
+                                if (modelPicker.authProvider.length > 0) {
+                                    modelPicker.authProvider = "";
+                                    modelPicker.search = "";
+                                } else if (modelPicker.authMode) {
+                                    modelPicker.authMode = false;
+                                    modelPicker.search = "";
+                                } else {
+                                    modelPicker.close();
+                                    input.forceActiveFocus();
+                                }
+                                modelPicker.refilter();
                                 event.accepted = true;
                             }
                         }
                     }
                 }
 
-                StyledListView {
-                    id: list
+                // hint while entering a key
+                StyledText {
+                    visible: modelPicker.authProvider.length > 0
+                    Layout.fillWidth: true
+                    text: qsTr("The key is stored by opencode for the '%1' provider (same as `opencode auth login`). Enter submits, Escape cancels.").arg(modelPicker.authProvider)
+                    wrapMode: Text.Wrap
+                    color: Colours.palette.m3onSurfaceVariant
+                }
 
+                // model list (search mode)
+                StyledListView {
+                    id: modelList
+
+                    visible: !modelPicker.authMode
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
@@ -512,7 +618,7 @@ Item {
                         StyledRect {
                             anchors.fill: parent
                             radius: Tokens.rounding.small
-                            color: rowRoot.isSelected ? Colours.tPalette.m3secondaryContainer : rowRoot.isHighlighted ? Colours.tPalette.m3surfaceContainerHighest : "transparent"
+                            color: rowRoot.isSelected ? Colours.palette.m3secondaryContainer : rowRoot.isHighlighted ? Colours.palette.m3surfaceContainerHighest : "transparent"
                         }
 
                         RowLayout {
@@ -559,9 +665,153 @@ Item {
                 }
 
                 StyledText {
-                    visible: list.count === 0
+                    visible: !modelPicker.authMode && modelList.count === 0
                     text: qsTr("No models match")
                     color: Colours.palette.m3outline
+                }
+
+                // provider access list (auth mode)
+                StyledListView {
+                    id: authList
+
+                    visible: modelPicker.authMode && modelPicker.authProvider.length === 0
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    spacing: 2
+
+                    model: modelPicker.authRows
+
+                    delegate: Item {
+                        id: authRow
+
+                        required property var modelData
+                        required property int index
+
+                        width: ListView.view?.width ?? 0
+                        implicitHeight: authName.implicitHeight + Tokens.padding.small * 2
+
+                        readonly property bool connected: client.authProviders[modelData.providerID] === true
+                        readonly property bool isHighlighted: index === modelPicker.authHighlight
+
+                        StyledRect {
+                            anchors.fill: parent
+                            radius: Tokens.rounding.small
+                            color: authRow.isHighlighted ? Colours.palette.m3surfaceContainerHighest : "transparent"
+                        }
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: Tokens.padding.small
+                            anchors.rightMargin: Tokens.padding.small
+                            spacing: Tokens.spacing.small
+
+                            MaterialIcon {
+                                text: authRow.connected ? "key" : "key_off"
+                                color: authRow.connected ? Colours.palette.m3primary : Colours.palette.m3outline
+                            }
+
+                            StyledText {
+                                id: authName
+
+                                Layout.fillWidth: true
+                                text: authRow.modelData.name
+                                elide: Text.ElideRight
+                                color: Colours.palette.m3onSurface
+                            }
+
+                            StyledText {
+                                visible: authRow.connected
+                                text: qsTr("connected")
+                                color: Colours.palette.m3outline
+                            }
+
+                            MaterialIcon {
+                                visible: authRow.connected
+                                text: "logout"
+                                color: Colours.palette.m3outline
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: client.removeAuth(authRow.modelData.providerID)
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            hoverEnabled: true
+                            onEntered: modelPicker.authHighlight = authRow.index
+                            onClicked: modelPicker.openAuthProvider(authRow.modelData.providerID)
+                        }
+                    }
+                }
+
+                StyledText {
+                    visible: modelPicker.authMode && modelPicker.authProvider.length === 0 && authList.count === 0
+                    text: qsTr("No providers available while the daemon is offline.")
+                    color: Colours.palette.m3outline
+                }
+
+                // footer: status + mode switch
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Tokens.spacing.small
+
+                    MaterialIcon {
+                        text: "key"
+                        color: Colours.palette.m3outline
+                    }
+
+                    StyledText {
+                        text: modelPicker.authMode ? qsTr("Provider access") : qsTr("%1 of %2 providers connected").arg(modelPicker.connectedCount).arg(modelPicker.authRows.length)
+                        color: Colours.palette.m3outline
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
+                    StyledRect {
+                        id: footerButton
+
+                        radius: height / 2
+                        implicitWidth: footerLabel.implicitWidth + Tokens.padding.small * 2
+                        implicitHeight: footerLabel.implicitHeight + Tokens.padding.extraSmall * 2
+                        color: Colours.palette.m3surfaceContainerHighest
+
+                        StyledText {
+                            id: footerLabel
+
+                            anchors.centerIn: parent
+                            text: {
+                                if (modelPicker.authProvider.length > 0)
+                                    return qsTr("Cancel");
+                                return modelPicker.authMode ? qsTr("Back to models") : qsTr("Manage keys");
+                            }
+                            color: Colours.palette.m3primary
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (modelPicker.authProvider.length > 0) {
+                                    modelPicker.authProvider = "";
+                                    modelPicker.search = "";
+                                } else {
+                                    modelPicker.authMode = !modelPicker.authMode;
+                                    modelPicker.search = "";
+                                    modelPicker.authHighlight = 0;
+                                }
+                                modelPicker.refilter();
+                                searchField.text = "";
+                                searchField.forceActiveFocus();
+                            }
+                        }
+                    }
                 }
             }
         }
