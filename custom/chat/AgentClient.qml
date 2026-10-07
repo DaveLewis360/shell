@@ -1,0 +1,143 @@
+pragma ComponentBehavior: Bound
+
+import QtQuick
+import Quickshell
+import Quickshell.Io
+
+// [fork] Bridge between the chat sidebar and chiefd (the agent daemon).
+// Transport: a unix socket at $XDG_STATE_HOME/chief/agent.sock carrying
+// newline-delimited JSON both ways. The daemon owns the opencode server.
+QtObject {
+    id: root
+
+    readonly property string socketPath: {
+        const stateHome = Quickshell.env("XDG_STATE_HOME");
+        return (stateHome && stateHome.length > 0 ? stateHome : Quickshell.env("HOME") + "/.local/state") + "/chief/agent.sock";
+    }
+
+    // offline | connecting | online
+    property string state: "connecting"
+    property bool connected: false
+    property string modelName: ""          // "provider/model" of the selected model
+    property var providers: []             // [{providerID, name, models: [{modelID, name}]}]
+
+    signal newMessage(string sender, string text)
+    signal assistantText(string text)
+    signal messageDone()
+    signal permissionRequested(string id, string title, string detail)
+
+    property Socket socket: Socket {
+        parser: SplitParser {
+            onRead: data => root.handleLine(data)
+        }
+
+        path: root.socketPath
+        connected: true
+
+        onConnectionStateChanged: {
+            root.connected = connected;
+        }
+    }
+
+    // Quickshell's Socket does not auto-reconnect while the daemon is starting;
+    // toggle the target state until the socket comes up.
+    property Timer reconnect: Timer {
+        interval: 2000
+        running: !root.connected
+        repeat: true
+
+        onTriggered: {
+            root.socket.connected = false;
+            root.socket.connected = true;
+        }
+    }
+
+    onConnectedChanged: {
+        if (connected) {
+            state = "connecting"; // online once the daemon greets us with a status frame
+        } else {
+            state = "offline";
+            modelName = "";
+        }
+    }
+
+    function handleLine(line: string): void {
+        let msg;
+        try {
+            msg = JSON.parse(line);
+        } catch (e) {
+            return;
+        }
+
+        switch (msg.type) {
+        case "status":
+            state = msg.state ?? "online";
+            // the daemon stores the model in opencode's API form {providerID, id}
+            modelName = msg.model ? (msg.model.providerID + "/" + (msg.model.modelID ?? msg.model.id)) : "";
+            break;
+        case "models":
+            providers = msg.providers ?? [];
+            break;
+        case "history":
+            for (let i = 0; i < (msg.messages ?? []).length; i++)
+                newMessage(msg.messages[i].sender, msg.messages[i].text);
+            state = "online";
+            break;
+        case "assistantText":
+            assistantText(msg.text ?? "");
+            break;
+        case "messageDone":
+            messageDone();
+            break;
+        case "permission":
+            permissionRequested(msg.id ?? "", msg.title ?? "", msg.detail ?? "");
+            break;
+        case "error":
+            newMessage("assistant", "**Error:** " + (msg.message ?? "unknown"));
+            messageDone();
+            break;
+        }
+    }
+
+    function send(text: string): void {
+        write({
+            type: "send",
+            text: text
+        });
+    }
+
+    function respondPermission(id: string, response: string): void {
+        write({
+            type: "permission",
+            id: id,
+            response: response
+        });
+    }
+
+    function abort(): void {
+        write({
+            type: "abort"
+        });
+    }
+
+    function newSession(): void {
+        write({
+            type: "newSession"
+        });
+    }
+
+    function setModel(providerID: string, modelID: string): void {
+        write({
+            type: "setModel",
+            providerID: providerID,
+            modelID: modelID
+        });
+    }
+
+    function write(obj: var): void {
+        if (!connected)
+            return;
+        socket.write(JSON.stringify(obj) + "\n");
+        socket.flush();
+    }
+}
