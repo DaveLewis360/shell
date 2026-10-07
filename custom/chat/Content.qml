@@ -290,7 +290,9 @@ Item {
         }
     }
 
-    // Model picker. A plain in-panel overlay, NOT a QQuickPopup: a popup
+    // Model picker — opencode-style: search field on top, flat list with the
+    // provider on the right of every row, keyboard navigation (up/down,
+    // enter, escape). A plain in-panel overlay, NOT a QQuickPopup: a popup
     // escapes the drawers window's input region and its modal grab breaks
     // the HyprlandFocusGrab, which instantly closed the picker and the
     // panel itself.
@@ -300,17 +302,106 @@ Item {
         anchors.fill: parent
 
         property bool open: false
-        // 500+ rows: only build them the first time the picker actually
-        // opens, never while the panel itself is loading
+        // 500+ entries: build the catalog only when the picker is first opened
         property bool rowsLoaded: false
+        property string search: ""
+        property var flatModels: []
+        property var filtered: []
+        property int highlightIndex: 0
 
         onOpenChanged: {
-            if (open)
-                rowsLoaded = true;
+            if (!open)
+                return;
+            rowsLoaded = true;
+            rebuild();
+            searchField.text = "";
+            highlightSelected();
+            searchField.forceActiveFocus();
         }
 
         function close(): void {
             open = false;
+        }
+
+        function highlightSelected(): void {
+            highlightIndex = 0;
+            for (let i = 0; i < filtered.length; i++) {
+                const m = filtered[i];
+                if (client.modelName === m.providerID + "/" + m.modelID) {
+                    highlightIndex = i;
+                    break;
+                }
+            }
+            // the delegates for a freshly assigned model may not exist yet
+            Qt.callLater(() => list.positionViewAtIndex(highlightIndex, ListView.Contain));
+        }
+
+        function rebuild(): void {
+            const flat = [];
+            const providers = client.providers ?? [];
+            for (let p = 0; p < providers.length; p++) {
+                const prov = providers[p];
+                const pname = prov.name ?? prov.providerID;
+                const models = prov.models ?? [];
+                for (let i = 0; i < models.length; i++)
+                    flat.push({
+                        providerID: prov.providerID,
+                        providerName: pname,
+                        modelID: models[i].modelID,
+                        name: models[i].name,
+                        free: !!models[i].free
+                    });
+            }
+            flatModels = flat;
+            refilter();
+        }
+
+        function refilter(): void {
+            const terms = search.trim().toLowerCase().split(/\s+/).filter(t => t.length > 0);
+            const out = [];
+            for (let i = 0; i < flatModels.length; i++) {
+                const m = flatModels[i];
+                if (terms.length > 0) {
+                    const hay = (m.providerID + " " + m.providerName + " " + m.modelID + " " + (m.name ?? "")).toLowerCase();
+                    let hit = true;
+                    for (let t = 0; t < terms.length; t++) {
+                        if (hay.indexOf(terms[t]) < 0) {
+                            hit = false;
+                            break;
+                        }
+                    }
+                    if (!hit)
+                        continue;
+                }
+                out.push(m);
+            }
+            filtered = out;
+            if (highlightIndex >= out.length)
+                highlightIndex = Math.max(0, out.length - 1);
+        }
+
+        function move(delta: int): void {
+            if (filtered.length === 0)
+                return;
+            highlightIndex = Math.max(0, Math.min(filtered.length - 1, highlightIndex + delta));
+            list.positionViewAtIndex(highlightIndex, ListView.Contain);
+        }
+
+        function select(index: int): void {
+            const m = filtered[index];
+            if (!m)
+                return;
+            client.setModel(m.providerID, m.modelID);
+            close();
+        }
+
+        Connections {
+            function onProvidersChanged(): void {
+                if (modelPicker.rowsLoaded)
+                    modelPicker.rebuild();
+            }
+
+            target: client
         }
 
         opacity: open ? 1 : 0
@@ -335,10 +426,15 @@ Item {
             }
         }
 
+        // The sheet: anchored under the model pill, right-aligned with the panel
         StyledRect {
-            anchors.centerIn: parent
-            width: parent.width - Tokens.padding.large * 2
-            height: Math.min(460, parent.height - Tokens.padding.large * 2)
+            id: sheet
+
+            anchors.top: modelPickerPill.bottom
+            anchors.topMargin: Tokens.spacing.small
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: Math.min(480, modelPicker.height - modelPickerPill.height - Tokens.padding.large * 2)
             radius: Tokens.rounding.large
             color: Colours.tPalette.m3surfaceContainer
 
@@ -347,101 +443,125 @@ Item {
                 anchors.margins: Tokens.padding.small
                 spacing: Tokens.spacing.small
 
-                StyledText {
-                    text: "Choose a model"
-                    font.bold: true
+                StyledRect {
+                    Layout.fillWidth: true
+                    radius: height / 2
+                    implicitHeight: searchField.implicitHeight + Tokens.padding.small * 2
+                    color: Colours.tPalette.m3surfaceContainerHighest
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: Tokens.padding.small
+                        anchors.rightMargin: Tokens.padding.small
+                        spacing: Tokens.spacing.small
+
+                        MaterialIcon {
+                            text: "search"
+                            color: Colours.palette.m3onSurfaceVariant
+                        }
+
+                        TextArea {
+                            id: searchField
+
+                            Layout.fillWidth: true
+                            placeholderText: qsTr("Search models…")
+                            placeholderTextColor: Colours.palette.m3outline
+                            color: Colours.palette.m3onSurface
+                            background: null
+                            wrapMode: TextArea.NoWrap
+
+                            onTextChanged: {
+                                modelPicker.search = text;
+                                modelPicker.refilter();
+                            }
+
+                            Keys.onUpPressed: modelPicker.move(-1)
+                            Keys.onDownPressed: modelPicker.move(1)
+                            Keys.onReturnPressed: modelPicker.select(modelPicker.highlightIndex)
+                            Keys.onEscapePressed: {
+                                modelPicker.close();
+                                input.forceActiveFocus();
+                                event.accepted = true;
+                            }
+                        }
+                    }
                 }
 
-                Flickable {
-                    id: flick
+                StyledListView {
+                    id: list
 
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
-                    contentHeight: providerColumn.implicitHeight
+                    spacing: 2
 
-                    ScrollBar.vertical: ScrollBar {}
+                    model: modelPicker.filtered
 
-                    ColumnLayout {
-                        id: providerColumn
+                    delegate: Item {
+                        id: rowRoot
 
-                        width: flick.width
-                        spacing: Tokens.spacing.extraSmall
+                        required property var modelData
+                        required property int index
 
-                        Repeater {
-                            model: modelPicker.rowsLoaded ? client.providers : []
+                        width: ListView.view?.width ?? 0
+                        implicitHeight: rowName.implicitHeight + Tokens.padding.small * 2
 
-                            ColumnLayout {
-                                id: providerSection
+                        readonly property bool isSelected: client.modelName === (modelData.providerID + "/" + modelData.modelID)
+                        readonly property bool isHighlighted: index === modelPicker.highlightIndex
 
-                                required property var modelData
+                        StyledRect {
+                            anchors.fill: parent
+                            radius: Tokens.rounding.small
+                            color: rowRoot.isSelected ? Colours.tPalette.m3secondaryContainer : rowRoot.isHighlighted ? Colours.tPalette.m3surfaceContainerHighest : "transparent"
+                        }
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: Tokens.padding.small
+                            anchors.rightMargin: Tokens.padding.small
+                            spacing: Tokens.spacing.small
+
+                            StyledText {
+                                id: rowName
 
                                 Layout.fillWidth: true
-                                spacing: 2
+                                text: rowRoot.modelData.name ?? rowRoot.modelData.modelID
+                                elide: Text.ElideMiddle
+                                color: rowRoot.isSelected ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
+                            }
 
-                                StyledText {
-                                    text: providerSection.modelData.name ?? providerSection.modelData.providerID
-                                    color: Colours.palette.m3primary
-                                }
+                            StyledText {
+                                visible: rowRoot.modelData.free
+                                text: "free"
+                                color: Colours.palette.m3primary
+                            }
 
-                                Repeater {
-                                    model: providerSection.modelData.models ?? []
+                            StyledText {
+                                text: rowRoot.modelData.providerName
+                                color: Colours.palette.m3outline
+                            }
 
-                                    Item {
-                                        id: modelRow
-
-                                        required property var modelData
-
-                                        Layout.fillWidth: true
-                                        implicitHeight: modelRowText.implicitHeight + Tokens.padding.small * 2
-
-                                        readonly property bool selected: client.modelName === (providerSection.modelData.providerID + "/" + modelRow.modelData.modelID)
-
-                                        StyledRect {
-                                            anchors.fill: parent
-                                            radius: Tokens.rounding.small
-                                            color: modelRow.selected ? Colours.tPalette.m3secondaryContainer : "transparent"
-                                        }
-
-                                        RowLayout {
-                                            anchors.fill: parent
-                                            anchors.leftMargin: Tokens.padding.small
-                                            anchors.rightMargin: Tokens.padding.small
-                                            spacing: Tokens.spacing.small
-
-                                            StyledText {
-                                                id: modelRowText
-                                                Layout.fillWidth: true
-                                                text: modelRow.modelData.name ?? modelRow.modelData.modelID
-                                                color: modelRow.selected ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
-                                            }
-
-                                            StyledText {
-                                                visible: modelRow.modelData.free
-                                                text: "free"
-                                                color: Colours.palette.m3primary
-                                            }
-
-                                            MaterialIcon {
-                                                visible: modelRow.selected
-                                                text: "check"
-                                                color: Colours.palette.m3onSecondaryContainer
-                                            }
-                                        }
-
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: {
-                                                client.setModel(providerSection.modelData.providerID, modelRow.modelData.modelID);
-                                                modelPicker.close();
-                                            }
-                                        }
-                                    }
-                                }
+                            MaterialIcon {
+                                visible: rowRoot.isSelected
+                                text: "check"
+                                color: Colours.palette.m3onSecondaryContainer
                             }
                         }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            hoverEnabled: true
+                            onEntered: modelPicker.highlightIndex = rowRoot.index
+                            onClicked: modelPicker.select(rowRoot.index)
+                        }
                     }
+                }
+
+                StyledText {
+                    visible: list.count === 0
+                    text: qsTr("No models match")
+                    color: Colours.palette.m3outline
                 }
             }
         }
