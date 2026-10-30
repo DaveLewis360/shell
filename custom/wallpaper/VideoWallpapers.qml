@@ -35,6 +35,9 @@ Singleton {
     // Stop the player instead of pausing it. That frees its memory and the decoder, and
     // the video starts again from its poster when it resumes.
     readonly property bool unloadWhenPaused: true
+    // Off when the shell was started with CAELESTIA_VIDEO_WALLPAPER=0 (shell-restart
+    // does that after repeated crashes): the posters show, nothing plays
+    readonly property bool playVideos: Quickshell.env("CAELESTIA_VIDEO_WALLPAPER") !== "0"
     // The size the played copy just covers, and its frame rate cap
     readonly property int nativeWidth: 1920
     readonly property int nativeHeight: 1200
@@ -106,7 +109,7 @@ Singleton {
     // The file the background plays for a video: its copy once it exists and has not
     // failed to play, else an empty string (the poster shows)
     function playable(path: string): string {
-        if (!path || !isVideo(path) || root.nativeFailed[path])
+        if (!root.playVideos || !path || !isVideo(path) || root.nativeFailed[path])
             return "";
         const copy = nativePath(path);
         return root.natives.has(copy) ? copy : "";
