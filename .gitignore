@@ -3,5 +3,14 @@
 /.qmlls.ini
 build/
 .cache/
-logs__pycache__/
+logs
+__pycache__/
 *.pyc
+
+# [fork] chat daemon: local secrets and machine-specific files, never commit.
+# service.json is a symlink to ~/.config/sidebar-opencode/service.json (port + password).
+custom/chat/daemon/opencode/service.json
+custom/chat/daemon/opencode/service-*.json
+custom/chat/daemon/opencode/service.lock
+custom/chat/daemon/opencode/sidebar-opencode.json
+custom/chat/daemon/*.bak-*
