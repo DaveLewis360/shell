@@ -21,35 +21,61 @@ QtObject {
     property string modelName: ""          // "provider/model" of the selected model
     property var providers: []             // [{providerID, name, models: [{modelID, name}]}]
     property var authProviders: ({})       // {providerID: true} - which providers have stored keys
+    property string agent: ""              // active primary agent id (chief/planner/unlocked)
+    property var agentsList: []            // [{id, name, icon, description}] offered by the daemon
 
     signal newMessage(string sender, string text)
     signal assistantText(string text)
     signal messageDone()
     signal permissionRequested(string id, string title, string detail)
+    signal permissionHandled(string id, string response)
 
-    property Socket socket: Socket {
-        parser: SplitParser {
-            onRead: data => root.handleLine(data)
-        }
+    // Fresh transport factory. A Socket whose first connect fails (daemon
+    // down, stale socket file) never recovers on quickshell 0.3.1: the dead
+    // QLocalSocket stays inside and later setConnected(true) calls are
+    // ignored, so toggling `connected` cannot heal it. Recreating the
+    // object always starts a real new attempt.
+    property Component socketFactory: Component {
+        Socket {
+            parser: SplitParser {
+                onRead: data => root.handleLine(data)
+            }
 
-        path: root.socketPath
-        connected: true
+            path: root.socketPath
+            connected: true
 
-        onConnectionStateChanged: {
-            root.connected = connected;
+            onConnectionStateChanged: {
+                root.connected = connected;
+            }
         }
     }
 
-    // Quickshell's Socket does not auto-reconnect while the daemon is starting;
-    // toggle the target state until the socket comes up.
+    property Socket socket
+
+    function resetSocket(): void {
+        if (socket) {
+            socket.connected = false;
+            socket.destroy();
+        }
+        socket = socketFactory.createObject(root);
+    }
+
+    Component.onCompleted: resetSocket()
+
+    // Recreate the transport until the daemon greets us with a status frame.
+    // Only a dead transport is replaced; a live one that is still waiting
+    // for its greeting is left alone. This also covers the stuck case where
+    // the daemon replaced the socket file underneath us: the old connection
+    // drops, connectionStateChanged flips us back to offline/connecting,
+    // and the next tick rebuilds the transport.
     property Timer reconnect: Timer {
-        interval: 2000
-        running: !root.connected
+        interval: 2500
+        running: !root.connected || root.state !== "online"
         repeat: true
 
         onTriggered: {
-            root.socket.connected = false;
-            root.socket.connected = true;
+            if (root.socket && !root.socket.connected)
+                root.resetSocket();
         }
     }
 
@@ -75,6 +101,11 @@ QtObject {
             state = msg.state ?? "online";
             // the daemon stores the model in opencode's API form {providerID, id}
             modelName = msg.model ? (msg.model.providerID + "/" + (msg.model.modelID ?? msg.model.id)) : "";
+            if (msg.agent)
+                agent = msg.agent;
+            break;
+        case "agents":
+            agentsList = msg.agents ?? [];
             break;
         case "models":
             providers = msg.providers ?? [];
@@ -103,14 +134,18 @@ QtObject {
         }
     }
 
-    function send(text: string): void {
+    function send(text: string, files: var): void {
         write({
             type: "send",
-            text: text
+            text: text,
+            files: files ?? []
         });
     }
 
     function respondPermission(id: string, response: string): void {
+        // Let the transcript mark the card answered BEFORE the round-trip so
+        // the UI never shows stale buttons on a slow link.
+        permissionHandled(id, response);
         write({
             type: "permission",
             id: id,
@@ -135,6 +170,13 @@ QtObject {
             type: "setModel",
             providerID: providerID,
             modelID: modelID
+        });
+    }
+
+    function setAgent(agent: string): void {
+        write({
+            type: "setAgent",
+            agent: agent
         });
     }
 

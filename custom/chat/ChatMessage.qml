@@ -14,6 +14,7 @@ Item {
     required property string kind
     required property string permId
     required property bool answered
+    required property string answeredResponse
     required property bool streaming
     required property string title
     required property string detail
@@ -34,6 +35,7 @@ Item {
         radius: Tokens.rounding.medium
         color: root.isUser ? Colours.palette.m3primaryContainer : Colours.tPalette.m3surfaceContainerHighest
         opacity: root.streaming ? 0.75 : 1
+        clip: true
 
         anchors.top: parent.top
         anchors.right: root.isUser ? parent.right : undefined
@@ -42,16 +44,37 @@ Item {
         implicitWidth: Math.min(msg.implicitWidth + Tokens.padding.medium * 2, root.width * 0.85)
         implicitHeight: msg.implicitHeight + Tokens.padding.small * 2
 
-        StyledText {
-            id: msg
+        // Wide non-wrapping markdown (tables, code fences) used to bleed out
+        // of the bubble and got cut by the list edges. The text still wraps at
+        // the bubble width like before, but anything wider is now pannable
+        // sideways inside the bubble instead of running off the panel.
+        Flickable {
+            id: msgFlick
 
-            anchors.centerIn: parent
-            width: Math.min(implicitWidth, bubble.width - Tokens.padding.medium * 2)
+            anchors.fill: parent
+            anchors.leftMargin: Tokens.padding.medium
+            anchors.rightMargin: Tokens.padding.medium
+            anchors.topMargin: Tokens.padding.small
+            anchors.bottomMargin: Tokens.padding.small
+            contentWidth: Math.max(width, msg.implicitWidth)
+            contentHeight: height
+            interactive: contentWidth > width + 1
+            flickableDirection: Flickable.HorizontalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            clip: true
 
-            text: root.text + (root.streaming ? " ▍" : "")
-            textFormat: Text.MarkdownText
-            color: root.isUser ? Colours.palette.m3onPrimaryContainer : Colours.palette.m3onSurface
-            wrapMode: Text.Wrap
+            StyledText {
+                id: msg
+
+                x: 0
+                y: 0
+                width: msgFlick.width
+
+                text: root.text + (root.streaming ? " ▍" : "")
+                textFormat: Text.MarkdownText
+                color: root.isUser ? Colours.palette.m3onPrimaryContainer : Colours.palette.m3onSurface
+                wrapMode: Text.Wrap
+            }
         }
     }
 
@@ -120,7 +143,22 @@ Item {
                     Layout.fillWidth: true
                     implicitHeight: permButtonLabel.implicitHeight + Tokens.padding.extraSmall * 2
                     radius: Tokens.rounding.small
-                    color: accent ? Colours.palette.m3primary : Colours.tPalette.m3surface
+
+                    // Visual feedback: hover brightens, press deepens. The
+                    // states live on permMouse - unqualified pressed/
+                    // containsMouse would not resolve outside a MouseArea.
+                    color: {
+                        const base = accent ? Colours.palette.m3primary : Colours.palette.m3surfaceContainerHighest;
+                        return permMouse.pressed ? Qt.darker(base, 1.12) : permMouse.containsMouse ? Qt.lighter(base, 1.12) : base;
+                    }
+
+                    opacity: permMouse.pressed ? 0.92 : 1
+
+                    Behavior on opacity {
+                        Anim {
+                            type: Anim.FastEffects
+                        }
+                    }
 
                     StyledText {
                         id: permButtonLabel
@@ -131,8 +169,11 @@ Item {
                     }
 
                     MouseArea {
+                        id: permMouse
+
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
+                        hoverEnabled: true
                         onClicked: permButton.clicked()
                     }
                 }
@@ -160,10 +201,21 @@ Item {
                 }
             }
 
-            StyledText {
+            // Resolved state (Cline/Roo-style): the ask collapses into a
+            // one-line receipt showing what was chosen, buttons gone.
+            RowLayout {
                 visible: root.answered
-                text: "handled"
-                color: Colours.palette.m3outline
+                spacing: Tokens.spacing.extraSmall
+
+                MaterialIcon {
+                    text: root.answeredResponse === "reject" ? "cancel" : root.answeredResponse === "always" ? "done_all" : "check_circle"
+                    color: root.answeredResponse === "reject" ? Colours.palette.m3error : Colours.palette.m3primary
+                }
+
+                StyledText {
+                    text: root.answeredResponse === "reject" ? qsTr("Rejected") : root.answeredResponse === "always" ? qsTr("Always approved") : qsTr("Approved")
+                    color: root.answeredResponse === "reject" ? Colours.palette.m3error : Colours.palette.m3primary
+                }
             }
         }
     }

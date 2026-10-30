@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import mimetypes
 import os
 import re
 import signal
@@ -24,17 +25,70 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from urllib.parse import quote
 
 HOME = Path.home()
 STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", HOME / ".local/state")) / "chief"
 SOCK_PATH = STATE_DIR / "agent.sock"
 SESSION_FILE = STATE_DIR / "session.json"
 MODEL_FILE = STATE_DIR / "model.json"
-AUTH_FILE = Path.home() / ".local/share/opencode/auth.json"
+AGENT_FILE = STATE_DIR / "agent.json"
+# Fully separated sidebar instance: the sidebar's opencode owns its own data
+# dir (sessions + auth.json) and its own config, so it never sees the user's
+# manual instance - separate sessions, keys and accounts.
+SIDEBAR_DATA_HOME = HOME / ".local/share/sidebar-opencode"
+SIDEBAR_CONFIG_HOME = HOME / ".config/sidebar-opencode"
+SIDEBAR_STATE_HOME = HOME / ".local/state/sidebar-opencode"
+DAEMON_DIR = Path(__file__).resolve().parent
+SIDEBAR_OPENCODE_CONFIG = DAEMON_DIR / "opencode" / "sidebar-opencode.json"
+SIDEBAR_OPENCODE_CONFIG_DIR = DAEMON_DIR / "opencode"
+AUTH_FILE = SIDEBAR_DATA_HOME / "auth.json"
+SIDEBAR_ENV = {
+    "XDG_DATA_HOME": str(SIDEBAR_DATA_HOME),
+    "XDG_CONFIG_HOME": str(SIDEBAR_CONFIG_HOME),
+    "XDG_STATE_HOME": str(SIDEBAR_STATE_HOME),
+    "OPENCODE_CONFIG": str(SIDEBAR_OPENCODE_CONFIG),
+    "OPENCODE_CONFIG_DIR": str(SIDEBAR_OPENCODE_CONFIG_DIR),
+}
+
+def vpn_env() -> dict:
+    """Egress env a spawnolt sidebar serverhez.
+
+    Jelenleg NINCS proxy: a sidebar a szokásos otthoni kapcsolaton
+    megy ki, ugyanaz, mint a kézi opencode példány. A korábbi topg-alagú
+    (oc-vpn-tunnel.service:12055 -> oc-vpn-bridge.service:15080) ki van
+    kapcsolva, így a per-IP free-kvóta split megszűnt.
+
+    Ha újra bekapcsolod a VPN egress-t, a funciónak is vissza kell adnia a
+    HTTPS_PROXY/HTTP_PROXY/NO_PROXY értékeket - lásd a git history-t.
+    """
+    return {}
+
 
 OC_HOST = "127.0.0.1"
 OC_PORT = int(os.environ.get("CHIEFD_OC_PORT", "4109"))
 AGENT_NAME = os.environ.get("CHIEFD_AGENT", "chief")
+# The agents the sidebar offers. Permissions live in each agent .md
+# (frontmatter rules, findLast semantics), so switching agents switches the
+# whole access regime - no config injection needed.
+AGENT_ORDER = ["chief", "planner", "unlocked"]
+AGENT_META = {
+    "chief": {
+        "name": "Chief",
+        "icon": "auto_awesome",
+        "description": "Full crew - asks before running commands or editing files",
+    },
+    "planner": {
+        "name": "Planner",
+        "icon": "psychology",
+        "description": "Plans and analyses - cannot run commands or edit files",
+    },
+    "unlocked": {
+        "name": "Unlocked",
+        "icon": "lock_open",
+        "description": "Runs everything without asking - only for trusted work",
+    },
+}
 HISTORY_LIMIT = 40
 PERMISSION_POLL = 1.5
 PERMISSION_TITLES = {
@@ -118,6 +172,7 @@ class Chief:
         self.loop: asyncio.AbstractEventLoop | None = None
         self.session_id: str | None = None
         self.model: dict | None = None            # {"providerID", "id"} as Model.Ref
+        self.agent: str = AGENT_NAME if AGENT_NAME in AGENT_META else "chief"   # active primary agent
         self.providers: list = []
         self.busy = False
         self.turn_ended: asyncio.Event | None = None   # set when the live turn finishes
@@ -143,25 +198,16 @@ class Chief:
         self.oc.password = None
         log(f"starting opencode serve on port {self.oc.port}")
         # Gate tool use on THIS server instance only (the user's other
-        # opencode instances are unaffected). Read-only tools stay allowed;
-        # shell commands and file edits require the user's approval in the
-        # sidebar. Agent .md frontmatter permissions are NOT honoured by
-        # this opencode build, hence the injected config layer.
-        server_env = dict(os.environ)
-        server_env["OPENCODE_CONFIG_CONTENT"] = json.dumps({
-            "permission": {
-                "edit": "ask",
-                "bash": "ask",
-                "webfetch": "allow",
-            }
-        })
+        # opencode instances are unaffected). Permissions come from the
+        # agent .md files (frontmatter rules); the sidebar's agent switch
+        # selects the regime at runtime.
         proc = subprocess.Popen(
             ["opencode", "serve", f"--hostname={OC_HOST}", f"--port={self.oc.port}"],
             cwd=str(HOME),
+            env={**os.environ, **SIDEBAR_ENV, **vpn_env()},
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
-            env=server_env,
         )
 
         self.server_proc = proc
@@ -210,6 +256,13 @@ class Chief:
         except Exception:
             self.model = None
 
+        try:
+            saved = json.loads(AGENT_FILE.read_text()).get("agent")
+            if saved in AGENT_META:
+                self.agent = saved
+        except Exception:
+            pass
+
         session_id = None
         try:
             session_id = json.loads(SESSION_FILE.read_text()).get("sessionID")
@@ -220,6 +273,8 @@ class Chief:
             code, _ = self._try(3, "GET", f"/api/session/{session_id}", timeout=8)
             if code == 200:
                 self.session_id = session_id
+                # the reused session may still run a previously chosen agent
+                self._try(3, "POST", f"/api/session/{session_id}/agent", timeout=10, body={"agent": self.agent})
                 log("reusing session", session_id)
                 return
             log("stored session gone, creating a new one")
@@ -232,14 +287,17 @@ class Chief:
             raise RuntimeError(f"cannot create session: {code} {body}")
         self.session_id = body["data"]["id"]
         SESSION_FILE.write_text(json.dumps({"sessionID": self.session_id}))
-        # run every turn as the chief agent
-        self._try(3, "POST", f"/api/session/{self.session_id}/agent", timeout=10, body={"agent": AGENT_NAME})
+        # run every turn as the agent chosen in the sidebar
+        self._try(3, "POST", f"/api/session/{self.session_id}/agent", timeout=10, body={"agent": self.agent})
         if self.model:
             self._try(3, "POST", f"/api/session/{self.session_id}/model", timeout=10, body={"model": self.model})
         log("created session", self.session_id)
 
     def save_model(self) -> None:
         MODEL_FILE.write_text(json.dumps(self.model or {}))
+
+    def save_agent(self) -> None:
+        AGENT_FILE.write_text(json.dumps({"agent": self.agent}))
 
     # ---------- sidebar transport ----------
 
@@ -275,6 +333,15 @@ class Chief:
             "type": "status",
             "state": "online",
             "model": self.model,
+            "agent": self.agent,
+        })
+
+    async def send_agents(self) -> None:
+        await self.broadcast({
+            "type": "agents",
+            "agents": [
+                {"id": aid, **AGENT_META[aid]} for aid in AGENT_ORDER
+            ],
         })
 
     async def send_models(self) -> None:
@@ -307,20 +374,45 @@ class Chief:
 
     # ---------- turn handling ----------
 
-    async def handle_send(self, text: str) -> None:
+    async def handle_send(self, text: str, files: list | None = None) -> None:
         if not self.session_id:
             await self.broadcast({"type": "error", "message": "no active session"})
             return
         if self.busy:
             await self.broadcast({"type": "error", "message": "the chief is still working - abort first"})
             return
+        if not text.strip() and not files:
+            return
+
+        # Attachments: opencode v2 accepts `files: [{uri, mime, name}]` next to
+        # `text` on the prompt endpoint (verified live: file contents reach the
+        # model). Paths must exist and are sent as file:// URIs.
+        payload: dict = {"text": text}
+        attached: list[dict] = []
+        for item in files or []:
+            if not isinstance(item, dict):
+                continue
+            raw = str(item.get("path", "")).strip()
+            if not raw:
+                continue
+            path = Path(raw).expanduser()
+            if not path.is_absolute() or not path.is_file():
+                await self.broadcast({"type": "error", "message": f"attachment not found: {raw}"})
+                return
+            attached.append({
+                "uri": "file://" + quote(str(path)),
+                "mime": mimetypes.guess_type(str(path))[0] or "application/octet-stream",
+                "name": str(item.get("name") or path.name),
+            })
+        if attached:
+            payload["files"] = attached
 
         self.busy = True
         self.turn_text = ""
         self.turn_ended = asyncio.Event()
         try:
             code, resp = await asyncio.to_thread(
-                self._try, 3, "POST", f"/api/session/{self.session_id}/prompt", 20, {"text": text}
+                self._try, 3, "POST", f"/api/session/{self.session_id}/prompt", 20, payload
             )
             if code != 200:
                 await self.broadcast({"type": "error", "message": f"prompt failed ({code}): {str(resp)[:200]}"})
@@ -499,6 +591,7 @@ class Chief:
         # This opencode build has no /api/auth route - write auth.json (the
         # same store `opencode auth login` maintains) directly.
         try:
+            AUTH_FILE.parent.mkdir(parents=True, exist_ok=True)
             try:
                 data = json.loads(AUTH_FILE.read_text())
             except Exception:
@@ -536,6 +629,26 @@ class Chief:
                 pass
         await self.restart_server()
         await self.send_auth()
+
+    async def handle_set_agent(self, agent: str) -> None:
+        """Switch the primary agent: persists, retargets the live session and
+        broadcasts. With permissions defined per-agent in the .md files this
+        switches the whole access regime (asks / read-only / no gates)."""
+        if agent not in AGENT_META:
+            await self.broadcast({"type": "error", "message": f"unknown agent: {agent}"})
+            return
+        self.agent = agent
+        self.save_agent()
+        log("agent switched to", agent)
+        if self.session_id:
+            code, resp = await asyncio.to_thread(
+                self._try, 3, "POST", f"/api/session/{self.session_id}/agent", 10,
+                {"agent": agent},
+            )
+            if not 200 <= code < 300:
+                await self.broadcast({"type": "error", "message": f"agent switch failed ({code}): {str(resp)[:150]}"})
+                return
+        await self.send_status()
 
     async def restart_server(self) -> None:
         """Full respawn: fresh serve, session reuse, catalog refresh, broadcasts."""
@@ -583,6 +696,7 @@ async def client_connected(reader: asyncio.StreamReader, writer: asyncio.StreamW
     try:
         await chief.send_status()
         await chief.send_models()
+        await chief.send_agents()
         await chief.send_history()
         await chief.send_auth()
         # re-surface permissions asked while no sidebar was attached, so the
@@ -601,7 +715,7 @@ async def client_connected(reader: asyncio.StreamReader, writer: asyncio.StreamW
 
             mtype = msg.get("type")
             if mtype == "send":
-                asyncio.create_task(chief.handle_send(str(msg.get("text", ""))))
+                asyncio.create_task(chief.handle_send(str(msg.get("text", "")), msg.get("files") or []))
             elif mtype == "permission":
                 asyncio.create_task(
                     chief.handle_permission_reply(str(msg.get("id", "")), str(msg.get("response", "reject")))
@@ -629,6 +743,8 @@ async def client_connected(reader: asyncio.StreamReader, writer: asyncio.StreamW
                 asyncio.create_task(chief.handle_set_auth(str(msg.get("provider", "")), str(msg.get("key", ""))))
             elif mtype == "removeAuth":
                 asyncio.create_task(chief.handle_remove_auth(str(msg.get("provider", ""))))
+            elif mtype == "setAgent":
+                asyncio.create_task(chief.handle_set_agent(str(msg.get("agent", ""))))
     except (ConnectionResetError, asyncio.IncompleteReadError):
         pass
     finally:
@@ -641,6 +757,7 @@ async def main() -> None:
     global CHIEF
 
     STATE_DIR.mkdir(parents=True, exist_ok=True)
+    SIDEBAR_DATA_HOME.mkdir(parents=True, exist_ok=True)
     if SOCK_PATH.exists():
         SOCK_PATH.unlink()
 
@@ -677,7 +794,7 @@ async def main() -> None:
     server = await asyncio.start_unix_server(client_connected, path=str(SOCK_PATH))
     os.chmod(SOCK_PATH, 0o600)
     log("listening on", SOCK_PATH)
-    log("agent:", AGENT_NAME, "| model:", chief.model)
+    log("agent:", chief.agent, "| model:", chief.model)
 
     stop = asyncio.Event()
     loop.add_signal_handler(signal.SIGINT, stop.set)

@@ -2,6 +2,9 @@
 Description=Chief agent daemon (bridges the chat sidebar to opencode)
 After=graphical-session.target
 PartOf=graphical-session.target
+# Nincs VPN egress: a spawnolt sidebar server az otthoni IP-ről megy ki,
+# akárcsak a kézi opencode példány. Az oc-vpn-bridge/oc-vpn-tunnel egységek
+# ki vannak kapcsolva (a per-IP free-kvóta split megszűnt).
 
 [Service]
 Type=simple
@@ -10,4 +13,4 @@ Restart=always
 RestartSec=2
 
 [Install]
-WantedBy=graphical-session.target
+WantedBy=default.target graphical-session.target

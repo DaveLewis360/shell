@@ -19,12 +19,10 @@ Item {
     implicitWidth: Tokens.sizes.sidebar.width
     opacity: 1 - offsetScale
 
-    // Snappier than the upstream DefaultSpatial (500 ms) so the panel feels
-    // close to instant.
+    // Same motion as the right-hand notification sidebar: the shell-default
+    // DefaultSpatial token (500 ms), so both sidebars appear/hide identically.
     Behavior on offsetScale {
-        Anim {
-            type: Anim.FastSpatial
-        }
+        Anim {}
     }
 
     // Keep the chat alive once built: rebuilding on every toggle meant a

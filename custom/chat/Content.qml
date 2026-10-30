@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Caelestia.Config
 import qs.components
 import qs.components.containers
@@ -18,6 +19,17 @@ Item {
     readonly property bool busy: busyState
 
     property bool busyState: false
+    property real busyStart: 0
+
+    // Files staged in the composer for the next message. Items: {path, name}
+    property var attachments: []
+
+    onBusyStateChanged: {
+        if (busyState) {
+            busyStart = Date.now();
+            busyElapsed.text = "0s";
+        }
+    }
 
     AgentClient {
         id: client
@@ -55,10 +67,35 @@ Item {
             title: title,
             detail: detail
         })
+
+        onPermissionHandled: (id, response) => {
+            for (let i = transcript.count - 1; i >= 0; i--) {
+                if (transcript.get(i).permId === id) {
+                    transcript.setProperty(i, "answered", true);
+                    transcript.setProperty(i, "answeredResponse", response);
+                    break;
+                }
+            }
+        }
     }
 
     ListModel {
         id: transcript
+    }
+
+    Timer {
+        id: busyTimer
+
+        interval: 1000
+        repeat: true
+        running: root.busyState
+
+        onTriggered: root.updateBusyElapsed()
+    }
+
+    function updateBusyElapsed(): void {
+        const s = Math.floor((Date.now() - root.busyStart) / 1000);
+        busyElapsed.text = s < 60 ? s + "s" : Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
     }
 
     function pushEntry(props: var): void {
@@ -68,38 +105,78 @@ Item {
             kind: "msg",
             permId: "",
             answered: false,
+            answeredResponse: "",
             streaming: false,
             title: "",
             detail: ""
         }, props));
     }
 
-    function respond(permId: string, response: string, index: int): void {
-        client.respondPermission(permId, response);
-        transcript.setProperty(index, "answered", true);
-    }
-
     function send(): void {
         const text = input.text.trim();
-        if (text.length === 0 || client.state !== "online")
+        const files = attachments;
+        if ((text.length === 0 && files.length === 0) || client.state !== "online")
             return;
 
+        const names = files.map(f => f.name).join(", ");
         root.pushEntry({
             sender: "user",
-            text: text
+            text: text + (names.length > 0 ? (text.length > 0 ? "\n\n" : "") + "`Attached: " + names + "`" : "")
         });
-        client.send(text);
+        client.send(text, files.map(f => ({
+            path: f.path,
+            name: f.name
+        })));
         input.clear();
+        attachments = [];
         root.busyState = true;
         list.positionViewAtEnd();
+    }
+
+    function attachPaths(paths: var): void {
+        for (let i = 0; i < paths.length; i++) {
+            const p = String(paths[i]).trim();
+            if (p.length === 0)
+                continue;
+            const parts = p.split("/");
+            root.addAttachment(p, parts[parts.length - 1]);
+        }
+    }
+
+    function addAttachment(path: string, name: string): void {
+        const list = attachments.slice();
+        for (let i = 0; i < list.length; i++) {
+            if (list[i].path === path)
+                return; // the same file only once
+        }
+        list.push({
+            path: path,
+            name: name
+        });
+        attachments = list;
+    }
+
+    function removeAttachment(index: int): void {
+        const list = attachments.slice();
+        list.splice(index, 1);
+        attachments = list;
+    }
+
+    function pasteClipboard(): void {
+        // Image first (staged as an attachment), then text at the cursor -
+        // wl-paste returns an empty string for formats the clipboard lacks.
+        pasteImage.running = true;
+        pasteText.running = true;
     }
 
     ColumnLayout {
         anchors.fill: parent
         spacing: Tokens.spacing.small
 
-        // Header: title, status, session actions
+        // Header: title, agent, status, session actions
         RowLayout {
+            id: headerRow
+
             Layout.fillWidth: true
             spacing: Tokens.spacing.small
 
@@ -114,6 +191,42 @@ Item {
 
             Item {
                 Layout.fillWidth: true
+            }
+
+            // Agent pill: the active agent, opens the picker
+            StyledRect {
+                id: agentPill
+
+                radius: height / 2
+                implicitWidth: agentPillRow.implicitWidth + Tokens.padding.small * 2
+                implicitHeight: statusText.implicitHeight + Tokens.padding.extraSmall * 0.75
+                color: agentPicker.open ? Colours.tPalette.m3surfaceContainerHighest : Colours.tPalette.m3surfaceContainer
+
+                RowLayout {
+                    id: agentPillRow
+
+                    anchors.centerIn: parent
+                    spacing: Tokens.spacing.extraSmall
+
+                    MaterialIcon {
+                        text: "smart_toy"
+                        color: Colours.palette.m3onSurfaceVariant
+                    }
+
+                    StyledText {
+                        text: client.agent.length > 0 ? client.agent : "agent"
+                        color: Colours.palette.m3onSurfaceVariant
+                    }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        modelPicker.close();
+                        agentPicker.open = true;
+                    }
+                }
             }
 
             // Status pill
@@ -145,19 +258,6 @@ Item {
                         root.busyState = false;
                         client.newSession();
                     }
-                }
-            }
-
-            // Abort while the agent is working
-            MaterialIcon {
-                text: "stop_circle"
-                visible: root.busy
-                color: Colours.palette.m3error
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: client.abort()
                 }
             }
         }
@@ -237,16 +337,66 @@ Item {
             }
         }
 
+        // Busy indicator (Claude Code-style): spinner + elapsed, interrupt at
+        // hand. Lives between the transcript and the input so it is the first
+        // thing seen while the model works.
+        RowLayout {
+            Layout.fillWidth: true
+            visible: root.busyState
+            spacing: Tokens.spacing.small
+
+            MaterialIcon {
+                text: "progress_activity"
+                color: Colours.palette.m3primary
+
+                RotationAnimation on rotation {
+                    running: root.busyState
+                    loops: Animation.Infinite
+                    from: 0
+                    to: 360
+                    duration: 1200
+                }
+            }
+
+            StyledText {
+                text: qsTr("Working…")
+                color: Colours.palette.m3onSurfaceVariant
+            }
+
+            StyledText {
+                id: busyElapsed
+
+                text: "0s"
+                color: Colours.palette.m3outline
+            }
+
+            Item {
+                Layout.fillWidth: true
+            }
+
+            // Interrupt
+            MaterialIcon {
+                text: "stop_circle"
+                color: Colours.palette.m3error
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: client.abort()
+                }
+            }
+        }
+
         // Input
         StyledRect {
             Layout.fillWidth: true
 
             radius: Tokens.rounding.large
             color: Colours.tPalette.m3surfaceContainerLow
-            implicitHeight: inputRow.implicitHeight + Tokens.padding.medium * 2
+            implicitHeight: inputColumn.implicitHeight + Tokens.padding.medium * 2
 
-            RowLayout {
-                id: inputRow
+            ColumnLayout {
+                id: inputColumn
 
                 anchors.left: parent.left
                 anchors.right: parent.right
@@ -255,35 +405,162 @@ Item {
                 anchors.rightMargin: Tokens.padding.medium
                 spacing: Tokens.spacing.small
 
-                TextArea {
-                    id: input
-
+                // Staged attachments: filename chips, click the cross to drop.
+                Flow {
                     Layout.fillWidth: true
+                    visible: root.attachments.length > 0
+                    spacing: Tokens.spacing.extraSmall
 
-                    placeholderText: qsTr("Ask me anything…")
-                    placeholderTextColor: Colours.palette.m3outline
-                    color: Colours.palette.m3onSurface
-                    wrapMode: TextArea.Wrap
-                    background: null
-                    enabled: client.state === "online"
+                    Repeater {
+                        model: root.attachments
 
-                    Keys.onPressed: event => {
-                        if (event.key === Qt.Key_Return && !(event.modifiers & Qt.ShiftModifier)) {
-                            root.send();
-                            event.accepted = true;
+                        delegate: StyledRect {
+                            id: chip
+
+                            required property var modelData
+                            required property int index
+
+                            radius: height / 2
+                            implicitWidth: chipRow.implicitWidth + Tokens.padding.small * 2
+                            implicitHeight: chipRow.implicitHeight + Tokens.padding.extraSmall
+
+                            color: Colours.tPalette.m3surfaceContainerHighest
+
+                            RowLayout {
+                                id: chipRow
+
+                                anchors.centerIn: parent
+                                spacing: Tokens.spacing.extraSmall
+
+                                MaterialIcon {
+                                    text: "attach_file"
+                                    color: Colours.palette.m3onSurfaceVariant
+                                }
+
+                                StyledText {
+                                    text: chip.modelData.name
+                                    color: Colours.palette.m3onSurface
+                                }
+
+                                MaterialIcon {
+                                    text: "close"
+                                    color: Colours.palette.m3onSurfaceVariant
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.removeAttachment(chip.index)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
 
-                MaterialIcon {
-                    text: "send"
+                RowLayout {
+                    id: inputRow
 
-                    color: input.length > 0 && client.state === "online" ? Colours.palette.m3primary : Colours.palette.m3outline
+                    Layout.fillWidth: true
+                    spacing: Tokens.spacing.small
 
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.send()
+                    TextArea {
+                        id: input
+
+                        Layout.fillWidth: true
+
+                        placeholderText: qsTr("Ask me anything…")
+                        placeholderTextColor: Colours.palette.m3outline
+                        color: Colours.palette.m3onSurface
+                        wrapMode: TextArea.Wrap
+                        background: null
+                        enabled: client.state === "online"
+
+                        Keys.onPressed: event => {
+                            if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_V) {
+                                // own paste: text at the cursor + clipboard
+                                // images staged as attachments
+                                root.pasteClipboard();
+                                event.accepted = true;
+                                return;
+                            }
+                            if (event.key === Qt.Key_Return && !(event.modifiers & Qt.ShiftModifier)) {
+                                root.send();
+                                event.accepted = true;
+                            }
+                        }
+                    }
+
+                    // Attach files (native picker)
+                    MaterialIcon {
+                        text: "attach_file"
+                        color: Colours.palette.m3onSurfaceVariant
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: fileDialog.running = true
+                        }
+                    }
+
+                    MaterialIcon {
+                        text: "send"
+
+                        color: (input.length > 0 || root.attachments.length > 0) && client.state === "online" ? Colours.palette.m3primary : Colours.palette.m3outline
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.send()
+                        }
+                    }
+                }
+            }
+        }
+
+        // Native file picker: multiple selection, zenity joins the paths with
+        // "|" (its default separator).
+        Process {
+            id: fileDialog
+
+            command: ["zenity", "--file-selection", "--multiple", "--title=Attach files to the chat"]
+
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    const t = text.trim();
+                    if (t.length > 0)
+                        root.attachPaths(t.split("|"));
+                }
+            }
+        }
+
+        // Clipboard image -> attachment file (staged under /tmp).
+        Process {
+            id: pasteImage
+
+            command: ["sh", "-c", "f=/tmp/chief-paste-$(date +%s%N).png; wl-paste -t image/png > \"$f\" 2>/dev/null; if [ -s \"$f\" ]; then printf '%s' \"$f\"; else rm -f \"$f\"; fi"]
+
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    const p = text.trim();
+                    if (p.length > 0)
+                        root.addAttachment(p, "pasted.png");
+                }
+            }
+        }
+
+        // Clipboard text -> inserted at the cursor (the TextArea's own ctrl-v
+        // is intercepted above, so this is the only paste path).
+        Process {
+            id: pasteText
+
+            command: ["sh", "-c", "wl-paste -t text"]
+
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    if (text.length > 0) {
+                        const pos = input.cursorPosition;
+                        input.insert(pos, text);
+                        input.cursorPosition = pos + text.length;
                     }
                 }
             }
@@ -483,17 +760,18 @@ Item {
             }
         }
 
-        // The sheet: anchored under the model pill, right-aligned with the
+        // The sheet: laid out under the model pill, right-aligned with the
         // panel. Raw palette (not tPalette): it floats over other windows'
-        // content, translucency would make it unreadable.
+        // content, translucency would make it unreadable. Positioned with a
+        // y binding - the pill lives in the header layout, so anchors across
+        // the two subtrees would be refused.
         StyledRect {
             id: sheet
 
-            anchors.top: modelPickerPill.bottom
-            anchors.topMargin: Tokens.spacing.small
-            anchors.left: parent.left
-            anchors.right: parent.right
-            height: Math.min(500, modelPicker.height - modelPickerPill.height - Tokens.padding.large * 2)
+            x: 0
+            width: parent.width
+            y: modelPickerPill.mapToItem(modelPicker, 0, 0).y + modelPickerPill.height + Tokens.spacing.small
+            height: Math.min(500, modelPicker.height - y - Tokens.padding.large * 2)
             radius: Tokens.rounding.large
             color: Colours.palette.m3surfaceContainer
 
@@ -817,11 +1095,196 @@ Item {
         }
     }
 
+    // Agent picker — same in-panel overlay pattern as the model picker: a
+    // popup would escape the drawers window's input region and its modal
+    // grab breaks the HyprlandFocusGrab, closing the whole panel. The list
+    // is short (a handful of primary agents), so a plain sheet is enough -
+    // keyboard navigation included, like the model picker.
+    Item {
+        id: agentPicker
+
+        anchors.fill: parent
+
+        property bool open: false
+        property int highlightIndex: 0
+
+        // The daemon reports the agents it knows (same .md pack); the local
+        // fallback keeps the picker usable while the daemon is offline.
+        readonly property var agents: client.agentsList.length > 0 ? client.agentsList : [{
+            id: "chief",
+            name: "Chief",
+            icon: "auto_awesome",
+            description: "Full crew - asks before running commands or editing files"
+        }, {
+            id: "planner",
+            name: "Planner",
+            icon: "psychology",
+            description: "Plans and analyses - cannot run commands or edit files"
+        }, {
+            id: "unlocked",
+            name: "Unlocked",
+            icon: "lock_open",
+            description: "Runs everything without asking - only for trusted work"
+        }]
+
+        onOpenChanged: {
+            if (!open)
+                return;
+            // highlight the currently active agent
+            highlightIndex = 0;
+            for (let i = 0; i < agents.length; i++) {
+                if (agents[i].id === client.agent) {
+                    highlightIndex = i;
+                    break;
+                }
+            }
+            forceActiveFocus(); // keyboard navigation needs the focus
+        }
+
+        function close(): void {
+            open = false;
+            input.forceActiveFocus();
+        }
+
+        function move(delta: int): void {
+            highlightIndex = Math.max(0, Math.min(agents.length - 1, highlightIndex + delta));
+        }
+
+        function choose(index: int): void {
+            const a = agents[index];
+            if (a)
+                client.setAgent(a.id);
+            close();
+        }
+
+        Keys.onUpPressed: agentPicker.move(-1)
+        Keys.onDownPressed: agentPicker.move(1)
+        Keys.onReturnPressed: agentPicker.choose(agentPicker.highlightIndex)
+        Keys.onEnterPressed: agentPicker.choose(agentPicker.highlightIndex)
+        Keys.onEscapePressed: agentPicker.close()
+
+        opacity: open ? 1 : 0
+        visible: opacity > 0
+
+        Behavior on opacity {
+            Anim {
+                type: Anim.DefaultEffects
+            }
+        }
+
+        // scrim + click-catcher
+        StyledRect {
+            anchors.fill: parent
+            radius: Tokens.rounding.large
+            color: Colours.palette.m3scrim
+            opacity: 0.35
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: agentPicker.close()
+            }
+        }
+
+        // Sheet laid out under the header (y binding: the header row lives
+        // in another subtree, anchors across would be refused).
+        StyledRect {
+            id: agentSheet
+
+            x: 0
+            width: parent.width
+            y: headerRow.mapToItem(agentPicker, 0, 0).y + headerRow.height + Tokens.spacing.small
+            implicitHeight: agentColumn.implicitHeight + Tokens.padding.small * 2
+            radius: Tokens.rounding.large
+            color: Colours.palette.m3surfaceContainer
+
+            ColumnLayout {
+                id: agentColumn
+
+                anchors.fill: parent
+                anchors.margins: Tokens.padding.small
+                spacing: Tokens.spacing.extraSmall
+
+                Repeater {
+                    model: agentPicker.agents
+
+                    delegate: Item {
+                        id: agentRow
+
+                        required property var modelData
+                        required property int index
+
+                        Layout.fillWidth: true
+                        implicitHeight: agentRowText.implicitHeight + agentRowDesc.implicitHeight + Tokens.padding.small * 1.5
+
+                        readonly property bool isSelected: client.agent === agentRow.modelData.id
+                        readonly property bool isHighlighted: agentPicker.highlightIndex === agentRow.index
+
+                        StyledRect {
+                            anchors.fill: parent
+                            radius: Tokens.rounding.small
+                            color: agentRow.isSelected ? Colours.palette.m3secondaryContainer : agentRow.isHighlighted ? Colours.palette.m3surfaceContainerHighest : "transparent"
+                        }
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: Tokens.padding.small
+                            anchors.rightMargin: Tokens.padding.small
+                            spacing: Tokens.spacing.small
+
+                            MaterialIcon {
+                                text: agentRow.modelData.icon ?? "smart_toy"
+                                color: agentRow.isSelected ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant
+                            }
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 0
+
+                                StyledText {
+                                    id: agentRowText
+
+                                    Layout.fillWidth: true
+                                    text: agentRow.modelData.name
+                                    color: agentRow.isSelected ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
+                                    elide: Text.ElideRight
+                                }
+
+                                StyledText {
+                                    id: agentRowDesc
+
+                                    Layout.fillWidth: true
+                                    text: agentRow.modelData.description
+                                    color: agentRow.isSelected ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3outline
+                                    elide: Text.ElideRight
+                                }
+                            }
+
+                            MaterialIcon {
+                                visible: agentRow.isSelected
+                                text: "check"
+                                color: Colours.palette.m3onSecondaryContainer
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            hoverEnabled: true
+                            onEntered: agentPicker.highlightIndex = agentRow.index
+                            onClicked: agentPicker.choose(agentRow.index)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Grab keyboard focus whenever the panel opens, so the input can be typed into
     Connections {
         function onChatChanged(): void {
             if (root.screenState.chat) {
                 modelPicker.close(); // never restore a stale picker across opens
+                agentPicker.close();
                 input.forceActiveFocus();
             }
         }
