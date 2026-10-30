@@ -1,5 +1,5 @@
 {
-    "_comment": "Each horizontal component is a port of an upstream file. `blob` is that file at `ref`; when upstream changes it, `git diff <blob> <ref>:<upstream>` shows what to carry over.",
+    "_comment": "Each horizontal component is a port of an upstream file. `blob` is that file at `ref` (a per-file `ref` overrides the top-level one); when upstream changes it, `git diff <blob> <ref>:<upstream>` shows what to carry over.",
     "ref": "v2.5.0",
     "files": {
         "HActiveWindow.qml": {
@@ -12,7 +12,8 @@
         },
         "HBluetoothStatus.qml": {
             "upstream": "modules/bar/components/status/BluetoothStatus.qml",
-            "blob": "300ebdf86cc01cd5c72926d3634890d20c0acd9d"
+            "ref": "b51fdb35ca7a14ac5a49e0d94fc5de2d79756aed",
+            "blob": "2cc1231d58aa5f4574d7c68807c2b77079f2c73f"
         },
         "HClock.qml": {
             "upstream": "modules/bar/components/Clock.qml",
