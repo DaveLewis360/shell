@@ -10,13 +10,17 @@ import qs.services
 import qs.custom.wallpaper
 
 // Plays a video wallpaper, muted and looped, over the background's image layer, which
-// shows the video's poster frame meanwhile.
+// shows the video's poster frame meanwhile. What plays is the copy made for the screen
+// (VideoWallpapers.playable), never the original; until the copy exists, the poster
+// shows.
 //
 // Two slots let one video cross-fade into the next: the new one loads in the back slot
 // and fades in over the old one once its first frame is up, then the old one fades out
-// and is unloaded. When an image replaces the video, the video fades out over the image
+// and is unloaded. The old one is paused while the new one loads, so only one decoder
+// works at a time. When an image replaces the video, the video fades out over the image
 // layer's own cross-fade. Every slot builds a fresh player for every video, so a frame
-// of the previous video can never show.
+// of the previous video can never show. A copy that fails to play, or shows no frame
+// within loadTimeout, is given up for the session: the poster stays.
 Item {
     id: root
 
@@ -34,7 +38,11 @@ Item {
     // The video the slots are asked to show. A launcher preview gets there only once
     // the selection rests on it, so scrolling past videos starts no decoders.
     property string target
+    // The file played for it, empty until its copy exists
+    readonly property string playFile: VideoWallpapers.playable(target)
     property VideoSlot front: null
+    // How long a new player may take to show its first frame (ms)
+    readonly property int loadTimeout: 15000
 
     function show(path: string): void {
         if (!path) {
@@ -45,14 +53,20 @@ Item {
 
         if (root.front && root.front.path === path) {
             root.front.wanted = true;
+            root.front.hold = false;
             (root.front === slotA ? slotB : slotA).wanted = false;
             return;
         }
 
         const back = root.front === slotA ? slotB : slotA;
         back.z = 1;
-        if (root.front)
+        if (root.front) {
             root.front.z = 0;
+            // Only one decoder at a time: the old video stops on its frame
+            root.front.hold = true;
+        }
+        back.hold = false;
+        back.video = root.target;
         back.path = path;
         back.wanted = true;
     }
@@ -65,6 +79,16 @@ Item {
             old.wanted = false;
     }
 
+    // Called by a slot whose player failed or timed out
+    function giveUp(slot: VideoSlot, path: string): void {
+        VideoWallpapers.markUnplayable(path);
+        slot.wanted = false;
+        if (root.front && root.front !== slot)
+            root.front.hold = false;
+        if (root.front === slot)
+            root.front = null;
+    }
+
     onSourceChanged: {
         if (Wallpapers.showPreview && source) {
             delay.restart();
@@ -73,7 +97,9 @@ Item {
             target = source;
         }
     }
-    onTargetChanged: show(target)
+    // The copy of the video on screen comes first in the queue
+    onTargetChanged: VideoWallpapers.request(target, true)
+    onPlayFileChanged: show(playFile)
     Component.onCompleted: target = source
 
     Timer {
@@ -95,10 +121,15 @@ Item {
         id: slot
 
         property string path
+        // The original video `path` was made from
+        property string video
         property bool wanted
+        // Paused while the other slot loads the next video
+        property bool hold
         // The first frame of `path` is up
         property bool ready
         readonly property bool live: path.length > 0 && (wanted || opacity > 0) && !root.suspended
+        readonly property bool playing: root.shouldPlay && !hold
 
         anchors.fill: parent
         opacity: wanted && ready ? 1 : 0
@@ -132,8 +163,18 @@ Item {
 
             sourceComponent: Item {
                 Component.onCompleted: {
-                    if (root.shouldPlay)
+                    if (slot.playing)
                         media.play();
+                }
+
+                // A player that shows no frame in time counts as failed
+                Timer {
+                    running: !slot.ready && slot.wanted && slot.playing
+                    interval: root.loadTimeout
+                    onTriggered: {
+                        console.warn(`VideoLayer: ${slot.path}: no frame after ${interval} ms`);
+                        root.giveUp(slot, slot.video);
+                    }
                 }
 
                 VideoOutput {
@@ -151,7 +192,10 @@ Item {
                     videoOutput: output
                     loops: MediaPlayer.Infinite
 
-                    onErrorOccurred: (error, errorString) => console.warn(`VideoLayer: ${slot.path}: ${errorString}`)
+                    onErrorOccurred: (error, errorString) => {
+                        console.warn(`VideoLayer: ${slot.path}: ${errorString}`);
+                        root.giveUp(slot, slot.video);
+                    }
                 }
 
                 Connections {
@@ -164,14 +208,14 @@ Item {
                 }
 
                 Connections {
-                    function onShouldPlayChanged(): void {
-                        if (root.shouldPlay)
+                    function onPlayingChanged(): void {
+                        if (slot.playing)
                             media.play();
                         else
                             media.pause();
                     }
 
-                    target: root
+                    target: slot
                 }
             }
         }

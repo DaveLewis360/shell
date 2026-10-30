@@ -23,7 +23,10 @@ the Nexus row edits.
   (`caelestia wallpaper -f clip.mp4`); `VideoWallpapers` makes a poster frame for
   every video with ffmpeg and hands it to everything that needs an image,
   `VideoLayer` plays the video over it on the background, and `VideoBadge` marks
-  videos in the pickers. Its behaviour switches (pause on battery or under a
+  videos in the pickers. The background plays a copy made for the screen by
+  `video-native.sh` (H.264 that just covers the panel, at most 30 fps), cached
+  under `~/.cache/caelestia/wallpaper/video-native/`, never the original; the
+  poster shows until the copy exists or if it fails. Its behaviour switches (pause on battery or under a
   fullscreen window, unload instead of pause, the launcher preview delay) are
   constants at the top of `VideoWallpapers.qml`, not `shell.json` options yet.
   Upstream is building its own video wallpapers (`feat/video-wallpapers`); once
