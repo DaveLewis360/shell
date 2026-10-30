@@ -14,7 +14,7 @@ import qs.utils
 Item {
     id: root
 
-    required property int modelData
+    required property var modelData
     required property int index
     required property int activeWsId
     required property int ws
@@ -27,17 +27,24 @@ Item {
     property string occupiedLabel
     property string label
 
-    readonly property list<HyprlandToplevel> toplevels: Hypr.toplevelsForWs(ws, GlobalConfig.bar.workspaces.ignoredTags)
+    // Special workspaces are identified by name: Hyprland 0.57 no longer gives
+    // them a numeric id (Quickshell reports -1 for all of them). Empty for
+    // numbered workspaces, which keep using ws/activeWsId.
+    property string specialName
+    property string activeSpecialName
+    readonly property HyprlandWorkspace wsObject: specialName ? (Hypr.workspaces.values.find(w => w.name === specialName) ?? null) : (Hypr.workspaces.values.find(w => w.id === ws) ?? null)
+
+    readonly property list<HyprlandToplevel> toplevels: specialName ? Hypr.toplevelsForWsName(specialName, GlobalConfig.bar.workspaces.ignoredTags) : Hypr.toplevelsForWs(ws, GlobalConfig.bar.workspaces.ignoredTags)
     readonly property bool isOccupied: toplevels.length > 0
     readonly property bool hasWindows: isOccupied && showWindows && Config.bar.workspaces.maxWindowIcons > 0
-    readonly property bool focused: activeWsId === ws
+    readonly property bool focused: specialName ? activeSpecialName === specialName : activeWsId === ws
     readonly property list<int> focusedShapeList: [MaterialShape.Slanted, MaterialShape.Oval, MaterialShape.Pill, MaterialShape.Triangle, MaterialShape.Arrow, MaterialShape.Diamond, MaterialShape.Pentagon, MaterialShape.Gem, MaterialShape.VerySunny, MaterialShape.Sunny, MaterialShape.Cookie4Sided, MaterialShape.Cookie6Sided, MaterialShape.Cookie7Sided, MaterialShape.Cookie9Sided, MaterialShape.Cookie12Sided, MaterialShape.Clover4Leaf, MaterialShape.SoftBurst, MaterialShape.Ghostish]
 
     property color offMonitorColour: Colours.palette.m3outlineVariant
     readonly property bool onOtherMonitor: {
         if (Config.bar.workspaces.perMonitor)
             return false;
-        const mon = Hypr.workspaces.values.find(w => w.id === ws)?.monitor;
+        const mon = wsObject?.monitor;
         return !!(mon && mon !== monitor);
     }
     readonly property color fgColour: {
@@ -128,8 +135,8 @@ Item {
                 if (label)
                     return label;
 
-                const ws = Hypr.workspaces.values.find(w => w.id === root.ws);
-                const wsName = !ws || ws.name == root.ws ? root.ws : Hypr.trimWsName(ws.name)[0];
+                const ws = root.wsObject;
+                const wsName = !ws || ws.name === String(root.ws) ? root.ws : Hypr.trimWsName(ws.name)[0];
 
                 const capitalisation = Config.bar.workspaces.capitalisation;
                 if (capitalisation === BarWorkspaceCapitalisation.Upper)
@@ -252,7 +259,7 @@ Item {
 
         property string name
         readonly property string icon: Icons.matchIconRuleList(Hypr.trimWsName(name), root.iconRules)
-        readonly property HyprlandWorkspace wsObj: Hypr.workspaces.values.find(w => w.id === root.ws) ?? null
+        readonly property HyprlandWorkspace wsObj: root.wsObject
 
         readonly property Connections conn: Connections {
             function onNameChanged(): void {
