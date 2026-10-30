@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import qs.components.misc
+import qs.custom.wallpaper as Fork // [fork]
 
 Scope {
     property alias lock: lock
@@ -13,6 +14,8 @@ Scope {
         id: lock
 
         signal unlock
+
+        onLockedChanged: Fork.VideoWallpapers.sessionLocked = locked // [fork] videos pause behind the lock
 
         LockSurface {
             lock: lock

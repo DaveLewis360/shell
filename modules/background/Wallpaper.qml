@@ -8,6 +8,7 @@ import qs.components.filedialog
 import qs.components.images
 import qs.services
 import qs.utils
+import qs.custom.wallpaper as Fork // [fork]
 
 Item {
     id: root
@@ -99,6 +100,13 @@ Item {
                 }
             }
         }
+    }
+
+    // [fork] A video wallpaper plays over its poster frame, which the images show
+    Fork.VideoLayer {
+        anchors.fill: parent
+        z: 1 // Above the images, which are created later
+        source: Wallpapers.currentVideo
     }
 
     Component {
