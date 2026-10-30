@@ -19,6 +19,15 @@ the Nexus row edits.
   `bar/MiniDash.qml` is the fork's own `miniDash` bar entry.
 - `nexus/` holds the settings rows the fork adds to upstream's Nexus pages.
 - `media/` holds `CoverArtCache`, which the cover art widgets read.
+- `wallpaper/` holds video wallpapers. The caelestia CLI sets a video like an image
+  (`caelestia wallpaper -f clip.mp4`); `VideoWallpapers` makes a poster frame for
+  every video with ffmpeg and hands it to everything that needs an image,
+  `VideoLayer` plays the video over it on the background, and `VideoBadge` marks
+  videos in the pickers. Its behaviour switches (pause on battery or under a
+  fullscreen window, unload instead of pause, the launcher preview delay) are
+  constants at the top of `VideoWallpapers.qml`, not `shell.json` options yet.
+  Upstream is building its own video wallpapers (`feat/video-wallpapers`); once
+  that lands, this directory and its hooks go.
 - Upstream files only carry small hooks that point here, each marked `[fork]`:
 
   ```sh

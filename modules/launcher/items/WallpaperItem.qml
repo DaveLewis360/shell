@@ -6,6 +6,7 @@ import qs.components
 import qs.components.effects
 import qs.components.images
 import qs.services
+import qs.custom.wallpaper as Fork // [fork]
 
 Item {
     id: root
@@ -66,12 +67,18 @@ Item {
 
         CachingImage {
             anchors.fill: parent
-            path: root.modelData.path
+            path: Fork.VideoWallpapers.still(root.modelData.path) // [fork] a video's poster frame
             smooth: !root.PathView.view.moving
             sourceSize: {
                 const dpr = (QsWindow.window as QsWindow)?.devicePixelRatio ?? 1;
                 return Qt.size(image.implicitWidth * dpr, image.implicitHeight * dpr);
             }
+        }
+
+        // [fork] Marks videos
+        Fork.VideoBadge {
+            anchors.centerIn: parent
+            path: root.modelData.path
         }
     }
 

@@ -7,6 +7,7 @@ import Caelestia.Config
 import qs.components
 import qs.components.controls
 import qs.services
+import qs.custom.wallpaper as Fork // [fork]
 
 Item {
     id: root
@@ -83,6 +84,12 @@ Item {
                         type: Anim.SlowEffects
                     }
                 }
+            }
+
+            // [fork] Marks videos, whose cells show a poster frame
+            Fork.VideoBadge {
+                anchors.centerIn: parent
+                path: String(root.source)
             }
         }
 

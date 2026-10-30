@@ -13,6 +13,7 @@ import qs.components.filedialog
 import qs.services
 import qs.utils
 import qs.modules.nexus.common
+import qs.custom.wallpaper as Fork // [fork]
 
 PageBase {
     id: root
@@ -127,7 +128,7 @@ PageBase {
                     opacity: modelData ? 1 : 0
                     enabled: modelData
 
-                    source: String(modelData?.path ?? "")
+                    source: Fork.VideoWallpapers.still(String(modelData?.path ?? "")) // [fork] a video's poster frame
                     text: {
                         if (!modelData)
                             return "";

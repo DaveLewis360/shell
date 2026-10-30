@@ -7,6 +7,7 @@ import Caelestia.Config
 import Caelestia.Models
 import qs.services
 import qs.utils
+import qs.custom.wallpaper as Fork // [fork]
 
 Searcher {
     id: root
@@ -16,7 +17,11 @@ Searcher {
     readonly property string fallback: Quickshell.shellPath("assets/wallpaper.webp")
 
     property bool showPreview: false
-    readonly property string current: showPreview ? previewPath : actualCurrent
+    // [fork] Video wallpapers (custom/wallpaper): the background plays `currentVideo`,
+    // and everything that needs an image gets its poster frame through `current`
+    readonly property string shown: showPreview ? previewPath : actualCurrent
+    readonly property string current: Fork.VideoWallpapers.still(shown)
+    readonly property string currentVideo: Fork.VideoWallpapers.isVideo(shown) ? shown : ""
     property string previewPath
     property string actualCurrent
     property bool previewColourLock
@@ -58,8 +63,10 @@ Searcher {
         if (!previewColourLock && pendingPreviewClear)
             Colours.showPreview = false;
     }
+    onCurrentVideoChanged: Fork.VideoWallpapers.request(currentVideo, true) // [fork] its poster first
 
-    list: wallpapers.entries
+    // [fork] Videos sort in among the images, as in a single model
+    list: Array.from(wallpapers.entries).concat(Array.from(Fork.VideoWallpapers.entries)).sort((a, b) => a.relativePath.localeCompare(b.relativePath))
     key: "relativePath"
     useFuzzy: GlobalConfig.launcher.useFuzzy.wallpapers
     extraOpts: useFuzzy ? ({}) : ({
@@ -114,12 +121,25 @@ Searcher {
     Process {
         id: getPreviewColoursProc
 
-        command: ["caelestia", "wallpaper", "-p", root.previewPath, ...root.smartArg]
+        // [fork] The wallpaper this run is for. A run whose preview has moved on or
+        // ended is not applied, and the newest preview is run again.
+        property string ranFor
+        readonly property bool wanted: root.showPreview || root.previewColourLock
+
+        command: ["caelestia", "wallpaper", "-p", Fork.VideoWallpapers.colourSource(root.previewPath), ...root.smartArg] // [fork] a video's poster
         stdout: StdioCollector {
             onStreamFinished: {
+                if (!getPreviewColoursProc.wanted || getPreviewColoursProc.ranFor !== root.previewPath) // [fork]
+                    return;
                 Colours.load(text, true);
                 Colours.showPreview = true;
             }
+        }
+        onStarted: ranFor = root.previewPath // [fork]
+        onExited: {
+            // [fork]
+            if (wanted && ranFor !== root.previewPath && Colours.scheme === "dynamic")
+                Qt.callLater(() => getPreviewColoursProc.running = true);
         }
     }
 }
