@@ -180,10 +180,12 @@ Singleton {
         }
     }
 
-    // The cache directories have to exist before the models can watch them
+    // The cache directories have to exist before the models can watch them. Empty
+    // files go first: a power loss right after ffmpeg finished can leave a poster or a
+    // copy with its name but none of its data, and the models only notice new names.
     Process {
         running: true
-        command: ["mkdir", "-p", root.postersDir, root.nativeDir]
+        command: ["sh", "-c", 'mkdir -p "$1" "$2" && find "$1" "$2" -maxdepth 1 -type f -size 0 -delete', "sh", root.postersDir, root.nativeDir]
         onExited: {
             root.dirReady = true;
             postersModel.path = root.postersDir;
@@ -224,10 +226,10 @@ Singleton {
     Process {
         id: maker
 
-        // $1 video, $2 poster, $3 width. ffmpeg writes next to the poster and the file
-        // is renamed into place, so a reader never sees half a JPEG. Exits 0 when the
-        // poster exists.
-        readonly property string script: 'v=$1 p=$2 w=$3; [ -s "$p" ] || { ffmpeg -nostdin -hide_banner -loglevel error -threads 2 -y -i "$v" -frames:v 1 -vf "scale=min($w\\,iw):-2" -q:v 3 -f image2 -c:v mjpeg "$p.part" && mv -f "$p.part" "$p"; }; rm -f "$p.part"; [ -s "$p" ]'
+        // $1 video, $2 poster, $3 width. ffmpeg writes next to the poster, the data is
+        // flushed and the file renamed into place, so a reader never sees half a JPEG,
+        // not even after a power loss. Exits 0 when the poster exists.
+        readonly property string script: 'v=$1 p=$2 w=$3; [ -s "$p" ] || { ffmpeg -nostdin -hide_banner -loglevel error -threads 2 -y -i "$v" -frames:v 1 -vf "scale=min($w\\,iw):-2" -q:v 3 -f image2 -c:v mjpeg "$p.part" && sync "$p.part" && mv -f "$p.part" "$p"; }; rm -f "$p.part"; [ -s "$p" ]'
         property string video
 
         onExited: code => {
