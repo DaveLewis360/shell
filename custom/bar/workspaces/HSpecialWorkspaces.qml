@@ -16,12 +16,14 @@ Item {
 
     required property HyprlandMonitor monitor
 
-    readonly property int activeSpecialId: monitor?.lastIpcObject.specialWorkspace?.id ?? 0
-    readonly property var wsIds: {
+    // Keyed by name: since Hyprland 0.57 special workspaces have no numeric id
+    // ("id" is gone from hyprctl's JSON, Quickshell reports -1 for all of them).
+    readonly property string activeSpecialName: monitor?.lastIpcObject.specialWorkspace?.name ?? ""
+    readonly property var wsNames: {
         const allMonitors = !Config.bar.workspaces.perMonitor;
-        return Hypr.workspaces.values.filter(w => w.name.startsWith("special:") && (allMonitors || w.monitor === root.monitor)).map(w => w.id);
+        return Hypr.workspaces.values.filter(w => w.name.startsWith("special:") && (allMonitors || w.monitor === root.monitor)).map(w => w.name);
     }
-    readonly property int activeIdx: wsIds.indexOf(activeSpecialId)
+    readonly property int activeIdx: activeSpecialName ? wsNames.indexOf(activeSpecialName) : -1
     readonly property real maxViewX: Math.max(0, view.contentWidth - width)
 
     readonly property Item activeWs: {
@@ -205,12 +207,14 @@ Item {
         onCountChanged: root.ensureVisible()
 
         model: ScriptModel {
-            values: root.wsIds
+            values: root.wsNames
         }
 
         delegate: HWorkspace {
-            activeWsId: root.activeSpecialId
-            ws: modelData
+            activeWsId: 0
+            ws: -1
+            specialName: modelData
+            activeSpecialName: root.activeSpecialName
             monitor: root.monitor
             offMonitorColour: Colours.palette.m3outline
             displayType: Config.bar.workspaces.specialDisplayType
@@ -286,10 +290,8 @@ Item {
                 return;
 
             const ws = view.itemAt(event.x - view.x, event.y) as HWorkspace;
-            if (ws) {
-                const match = Hypr.workspaces.values.find(w => w.id === ws.ws);
-                if (match)
-                    Hypr.toggleSpecial(Hypr.trimWsName(match.name));
+            if (ws?.specialName) {
+                Hypr.toggleSpecial(Hypr.trimWsName(ws.specialName));
             } else {
                 Hypr.toggleSpecial("special");
             }
