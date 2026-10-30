@@ -114,6 +114,7 @@ Item {
             spacing: root.gap
 
             Load {
+                mirrored: true
                 icon: "memory"
                 value: Cpu.percentage
                 text: Strings.percentOne(Cpu.percentage)
@@ -122,6 +123,7 @@ Item {
 
             // Filled to the temperature out of 100 °C, as the dashboard's bar is
             Load {
+                mirrored: true
                 icon: root.hot ? "thermometer_alert" : "thermometer"
                 value: Cpu.temperature / 100
                 text: Units.formatSensorTemp(Cpu.temperature)
@@ -346,7 +348,8 @@ Item {
     }
 
     // One reading: its icon in a ring filled to the value, then the value, in the
-    // clock's type and colour. Too hot turns it to the error colour.
+    // clock's type and colour. Too hot turns it to the error colour. Mirrored on
+    // the left flank so both sides face the player with the icon towards it.
     component Load: RowLayout {
         id: load
 
@@ -356,6 +359,9 @@ Item {
         // The widest text it can show, so nothing shifts as the numbers change
         required property string widest
         property bool hot
+        property bool mirrored: false
+
+        layoutDirection: mirrored ? Qt.RightToLeft : Qt.LeftToRight
 
         readonly property color accent: hot ? Colours.palette.m3error : root.loadColour
 
@@ -392,6 +398,7 @@ Item {
             text: load.text
             color: load.accent
             font: root.primaryFont
+            horizontalAlignment: load.mirrored ? Text.AlignRight : Text.AlignLeft
 
             TextMetrics {
                 id: widestMetrics
