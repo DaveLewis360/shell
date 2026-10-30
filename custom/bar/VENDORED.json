@@ -8,7 +8,8 @@
         },
         "HBar.qml": {
             "upstream": "modules/bar/Bar.qml",
-            "blob": "1ceb9b6cf43ef3624fa65ef66da4df318c911764"
+            "ref": "b51fdb35ca7a14ac5a49e0d94fc5de2d79756aed",
+            "blob": "3399f1dd26354ac29165c1ad69fb9f7d3beb57b2"
         },
         "HBluetoothStatus.qml": {
             "upstream": "modules/bar/components/status/BluetoothStatus.qml",
@@ -49,7 +50,8 @@
         },
         "workspaces/HWorkspace.qml": {
             "upstream": "modules/bar/components/workspaces/Workspace.qml",
-            "blob": "af314c2940d5775dd2dfba58d819b9575f2cf19d"
+            "ref": "b51fdb35ca7a14ac5a49e0d94fc5de2d79756aed",
+            "blob": "0ecf68729ed8596610099ab45385146730b80732"
         },
         "workspaces/HWorkspaces.qml": {
             "upstream": "modules/bar/components/workspaces/Workspaces.qml",
