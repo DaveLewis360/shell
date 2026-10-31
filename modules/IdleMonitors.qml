@@ -8,6 +8,7 @@ import Quickshell.Services.UPower
 import Caelestia.Config
 import Caelestia.Services
 import qs.services
+import qs.custom.env // [fork]
 
 Scope {
     id: root
@@ -34,7 +35,7 @@ Scope {
         else if (typeof action === "string")
             Hypr.dispatch(Hypr.usingLua && ["dpms off", "dpms on"].includes(action) ? `hl.dsp.dpms({ action = "${action === "dpms off" ? "disable" : "enable"}" })` : action);
         else if (!SessionManager.exec(action))
-            Quickshell.execDetached(action);
+            ChildEnv.exec(action); // [fork] session environment for the child
     }
 
     Connections {

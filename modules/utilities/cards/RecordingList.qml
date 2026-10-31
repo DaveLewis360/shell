@@ -12,6 +12,7 @@ import qs.components.containers
 import qs.components.controls
 import qs.services
 import qs.utils
+import qs.custom.env // [fork]
 
 ColumnLayout {
     id: root
@@ -105,7 +106,7 @@ ColumnLayout {
                 onClicked: {
                     root.screenState.utilities = false;
                     root.screenState.sidebar = false;
-                    Quickshell.execDetached([...GlobalConfig.general.apps.playback, recording.modelData.path]);
+                    ChildEnv.exec([...GlobalConfig.general.apps.playback, recording.modelData.path]); // [fork] session environment
                 }
             }
 
@@ -115,7 +116,7 @@ ColumnLayout {
                 onClicked: {
                     root.screenState.utilities = false;
                     root.screenState.sidebar = false;
-                    Quickshell.execDetached([...GlobalConfig.general.apps.explorer, recording.modelData.path]);
+                    ChildEnv.exec([...GlobalConfig.general.apps.explorer, recording.modelData.path]); // [fork] session environment
                 }
             }
 

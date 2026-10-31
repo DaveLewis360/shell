@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.custom.env // [fork]
 
 Singleton {
     id: root
@@ -78,6 +79,9 @@ Singleton {
 
     Process {
         id: commandProc
+
+        // [fork] gpu-screen-recorder picks its encoder with LIBVA_DRIVER_NAME: the session's, not the shell's
+        environment: ChildEnv.env
 
         // The command owns the transition: `caelestia record` blocks on slurp for
         // region captures, and waits for the recorder to finalise the file when

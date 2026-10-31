@@ -6,6 +6,7 @@ import Caelestia.Config
 import Caelestia.I18n
 import qs.components
 import qs.services
+import qs.custom.env // [fork]
 
 Item {
     id: root
@@ -79,7 +80,7 @@ Item {
                 id: stateLayer
 
                 onClicked: {
-                    Quickshell.execDetached([...GlobalConfig.general.apps.terminal, "fish", "-C", `exec qalc -i '${root.math}'`]);
+                    ChildEnv.exec([...GlobalConfig.general.apps.terminal, "fish", "-C", `exec qalc -i '${root.math}'`]); // [fork] session environment
                     root.list.screenState.launcher = false;
                 }
 

@@ -8,6 +8,7 @@ import Caelestia.I18n
 import Caelestia.Services
 import qs.services
 import qs.utils
+import qs.custom.env // [fork]
 
 Searcher {
     id: root
@@ -51,7 +52,7 @@ Searcher {
             } else {
                 list.screenState.launcher = false;
                 if (!SessionManager.exec(command))
-                    Quickshell.execDetached(command);
+                    ChildEnv.exec(command); // [fork] session environment for the child
             }
         }
     }

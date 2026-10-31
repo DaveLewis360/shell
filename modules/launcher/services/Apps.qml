@@ -4,6 +4,7 @@ import Quickshell
 import Caelestia.Config
 import Caelestia.Models
 import qs.utils
+import qs.custom.env // [fork]
 
 Searcher {
     id: root
@@ -11,13 +12,11 @@ Searcher {
     function launch(entry: DesktopEntry): void {
         appDb.incrementFrequency(entry.id);
 
+        // [fork] ChildEnv: the app gets the session environment, not the shell's
         if (entry.runInTerminal)
-            Quickshell.execDetached({
-                command: [...GlobalConfig.general.apps.terminal, `${Quickshell.shellDir}/assets/wrap_term_launch.sh`, ...entry.command],
-                workingDirectory: entry.workingDirectory
-            });
+            ChildEnv.exec([...GlobalConfig.general.apps.terminal, `${Quickshell.shellDir}/assets/wrap_term_launch.sh`, ...entry.command], entry.workingDirectory);
         else
-            entry.execute();
+            ChildEnv.exec(entry.command, entry.workingDirectory); // [fork] was entry.execute()
     }
 
     function search(search: string): var {

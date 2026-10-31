@@ -31,6 +31,17 @@ the Nexus row edits.
   constants at the top of `VideoWallpapers.qml`, not `shell.json` options yet.
   Upstream is building its own video wallpapers (`feat/video-wallpapers`); once
   that lands, this directory and its hooks go.
+  Decoding: `shell-restart` (dotfiles) starts the shell with
+  `QT_FFMPEG_DECODING_HW_DEVICE_TYPES=vaapi` and `LIBVA_DRIVER_NAME=iHD`, so the
+  Intel iGPU decodes the copy (VA-API) and the NVIDIA card stays idle; if VA-API
+  does not come up, Qt decodes in software, never on the NVIDIA card.
+- `env/ChildEnv.qml` gives programs the shell starts the session's environment
+  back: the two variables above are for the shell only. `shell-restart` passes the
+  session values in `CAELESTIA_CHILD_ENV` (JSON, `null` = not set), and the launch
+  points (launcher apps and actions, session menu, idle actions, calculator,
+  recordings, swappy, `caelestia record`) hand `ChildEnv.env` to the child.
+  Background helpers (`nmcli`, `hyprctl`, the caelestia CLI's wallpaper and scheme
+  commands) still inherit the shell's environment; none of them uses VA-API.
 - Upstream files only carry small hooks that point here, each marked `[fork]`:
 
   ```sh

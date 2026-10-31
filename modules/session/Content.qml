@@ -9,6 +9,7 @@ import qs.components
 import qs.components.controls
 import qs.services
 import qs.utils
+import qs.custom.env // [fork]
 
 Column {
     id: root
@@ -87,7 +88,7 @@ Column {
 
         function exec(): void {
             if (!SessionManager.exec(command))
-                Quickshell.execDetached(command);
+                ChildEnv.exec(command); // [fork] session environment for the child
         }
 
         implicitWidth: Tokens.sizes.session.button
